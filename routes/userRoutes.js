@@ -1,29 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const protect = require('../middleware/authMiddleware');
 
-// Ruta para registrar un nuevo usuario
-router.post('/register', async (req, res) => {
-  try {
-    const { user_name, email, password_hash } = req.body;
-
-    // Validar datos básicos
-    if (!user_name || !email || !password_hash) {
-      return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
-    }
-
-    // Crear nuevo usuario
-    const newUser = new User({ user_name, email, password_hash });
-    await newUser.save();
-
-    res.status(201).json({ message: 'Usuario registrado exitosamente.', user: newUser });
-  } catch (error) {
-    res.status(500).json({ message: 'Error al registrar usuario.', error: error.message });
-  }
-});
+//Aqui iran todas las rutas relacionadas con el usuario
+// Por ejemplo: configuracion, etc.
 
 // Ruta para configurar datos del usuario
-router.put('/configure/:id', async (req, res) => {
+router.put('/configure/:id', protect, async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -41,4 +25,16 @@ router.put('/configure/:id', async (req, res) => {
   }
 });
 
+router.get( '/profile', protect, async (req, res) => {
+  try {
+    const userId = req.user.id; // Obtener el ID del usuario del token
+    const user =await User.findById(userId).select('-password_hash');
+    if(!user) return res.status(404).json({message:'Usuario no encontrado'});
+    res.json({user});
+} 
+catch(errr){
+  res.status(500).json({message:'Error al obtener el perfil del usuario', error: error.message});
+}
+
+});
 module.exports = router;

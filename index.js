@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 
 // Cargar las variables de entorno del archivo .env
-require('dotenv').config({ path: './MONGO_URI.env' });
+require('dotenv').config();
 
 // Inicializar la aplicación de Express
 const app = express();
@@ -22,6 +22,10 @@ const PORT = process.env.PORT || 27017;
 app.get('/', (req, res) => {
   res.send('¡API funcionando correctamente! ✅');
 });
+
+// Integrar las rutas de autenticación
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
 
 // Integrar las rutas de usuario
 const userRoutes = require('./routes/userRoutes');

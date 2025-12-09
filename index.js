@@ -16,7 +16,7 @@ app.use(cors()); // Permite peticiones desde otros orígenes
 app.use(express.json()); // Permite al servidor entender JSON
 
 // Definir el puerto
-const PORT = process.env.PORT || 27017;
+const PORT = process.env.PORT || 8080;
 
 // Ruta de prueba
 app.get('/', (req, res) => {

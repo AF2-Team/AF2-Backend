@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema({
   photo_profile: { type: String, default: '' },
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
+  deleted_at: { type: Date, default: null },
   counters: {
     followers: { type: Number, default: 0 },
     following: { type: Number, default: 0 },

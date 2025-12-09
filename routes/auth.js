@@ -16,14 +16,20 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ message: 'Usuario no encontrado' });
         }
 
-        // Usamos el método del modelo, que ya usa bcryptjs correctamente.
-        // Esto soluciona la inconsistencia y hace el código más limpio y seguro.
+        // Usamos el método del modelo, que ya usa bcryptjs.
         const isMatch = await user.matchPassword(password);
         if (!isMatch) {
             return res.status(400).json({ message: 'Contraseña incorrecta' });
         }
         const payload = { id: user._id, email: user.email };
-        const token = jwt.sign(payload, process.env.JWT_SECRET || '', { expiresIn: '1h' });
+         //const token = jwt.sign(payload, process.env.JWT_SECRET || '', { expiresIn: '1h' });
+        
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            // Esta verificación previene que se genere un token inseguro.
+            return res.status(500).json({ message: 'Error de configuración del servidor' });
+        }
+        const token = jwt.sign(payload, secret, { expiresIn: '1h' });
 
         res.status(200).json({
             message: 'Autenticación exitosa',

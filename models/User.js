@@ -28,6 +28,12 @@ userSchema.pre('save', async function (next) {
   next();
 });
 
+// Hook para actualizar el campo 'updated_at' antes de guardar
+userSchema.pre('save', function (next) {
+  this.updated_at = new Date();
+  next();
+});
+
 // Método para comparar contraseñas
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password_hash);

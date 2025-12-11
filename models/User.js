@@ -4,18 +4,58 @@ const bcrypt = require('bcryptjs');
 // Definición del esquema de usuarioen base a los requisitos
 // que estan en el documento del proyecto
 const userSchema = new mongoose.Schema({
-  user_name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password_hash: { type: String, required: true },
-  bio: { type: String, default: '' },
-  photo_profile: { type: String, default: '' },
-  created_at: { type: Date, default: Date.now },
-  updated_at: { type: Date, default: Date.now },
-  deleted_at: { type: Date, default: null },
+  user_name: {
+    type: String,
+    required: true
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  password_hash: {
+    type: String,
+    required: true
+  },
+  bio: {
+    type: String,
+    default: ''
+  },
+  photo_profile: {
+    type: String,
+    default: ''
+  },
+  photo_cover: {
+    type: String,
+    default: ''
+  },
+  following_ids: [{
+    type: mongoose.Schema.ObjectId,
+    ref: 'User'
+  }],
+  followers_ids: [{
+    type: mongoose.Schema.ObjectId,
+    ref: 'User'
+  }],
+
   counters: {
     followers: { type: Number, default: 0 },
     following: { type: Number, default: 0 },
   },
+
+  created_at: {
+    type: Date,
+    default: Date.now
+  },
+  updated_at: {
+    type: Date,
+    default: Date.now
+  },
+  deleted_at: {
+    type: Date,
+    default: null
+  },
+
 }, { collection: 'user' });
 
 // Hook para hashear la contraseña antes de guardarla

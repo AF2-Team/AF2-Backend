@@ -10,7 +10,7 @@ const PostSchema = new mongoose.Schema({
     media_url: {
         type: String,
         trim: true,
-        default: null
+        default: '',
     },
 
     author: {
@@ -77,5 +77,17 @@ const PostSchema = new mongoose.Schema({
         index: true
     }
 }, { collection: 'post' });
+
+
+PostSchema.pre('save', function (next) {
+    this.updated_at = new Date();
+    next();
+});
+
+// Indice compuesto para el timelinegarantiza que las 
+// consultas de Feed (ordenadas por fecha y excluyendo eliminados) 
+// sean rápidas.
+PostSchema.index({ created_at: -1, deleted_at: 1 });
+
 
 module.exports = mongoose.model('Post', PostSchema);

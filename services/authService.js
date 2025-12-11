@@ -12,7 +12,7 @@ const login = async (email, password) => {
   const user = await User.findOne({ email });
   if (!user || !(await user.matchPassword(password))) {
     const error = new Error('Credenciales incorrectas');
-    error.statusCode = 401; // 401 Unauthorized es más apropiado para credenciales inválidas
+    error.statusCode = 401;
     throw error;
   }
 

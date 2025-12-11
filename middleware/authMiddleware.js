@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-module.exports = function (req, res, next) {
+const protect = function (req, res, next) {
     const authHeader = req.headers['authorization'] || req.headers['Authorization']; //Variable para obtener el token del header
     if (!authHeader) return res.status(401).json({ message: 'No hay token proporcionado' });
 
@@ -12,7 +12,7 @@ module.exports = function (req, res, next) {
     try {
         //const secret = process.env.JWT_SECRET || '';
         const secret = process.env.JWT_SECRET;
-        if (!secret) { 
+        if (!secret) {
             console.error('JWT_SECRET no está definido en las variables de entorno.');
             return res.status(500).json({ message: 'Error de configuración del servidor.' });
         }
@@ -29,3 +29,5 @@ module.exports = function (req, res, next) {
         return res.status(401).json({ message: 'Token inválido' });
     }
 };
+
+module.exports = { protect };

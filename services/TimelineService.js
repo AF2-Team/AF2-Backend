@@ -6,7 +6,7 @@ class TimelineService {
 
     async getHomeFeed(userId, pageSize, currentPage) {
         
-        //Validar Paginación
+        //Calcular Paginacion
         const skipAmount = (currentPage - 1) * pageSize;
 
         //Obtener usuarios seguidos y validar existencia
@@ -18,7 +18,7 @@ class TimelineService {
         }
 
         const followingIds = user.following_ids; 
-        const isColdStart = followingIds.length === 0;
+        const isNewUser = followingIds.length === 0;
 
         //Construcción Dinámica del Filtro
         let filterQuery = {};
@@ -26,9 +26,9 @@ class TimelineService {
         // Excluir posts eliminados
         filterQuery.deleted_at = null; 
 
-        if (isColdStart) {
-            // COLD START
-           // Lógica de Popularidad (Filtrado Mínimo)
+        if (isNewUser) {
+            // New User
+           // Lógica de Popularidad
             // Solo mostrar posts que tengan un mínimo de interacciones (ej. al menos 5 likes O 2 comentarios).
             filterQuery.$or = [
                 { 'counters.likes': { $gte: 5 } },
@@ -43,15 +43,16 @@ class TimelineService {
             sortQuery = { 'counters.likes': -1, created_at: -1 };
 
         } else {
-            // FEED NORMAL: Mostrar solo contenido de los usuarios seguidos
+            // Timeline normal
+            // Mostrar solo contenido de los usuarios seguidos
             // Mostrar posts cuyo 'author._id' esté dentro del array 'followingIds'
             filterQuery['author._id'] = { $in: followingIds };
-            console.log(`[TimelineService] Estado: FEED NORMAL. Filtro: ${JSON.stringify(filterQuery)}`);
+            console.log(`[TimelineService] Estado: Timeline. Filtro: ${JSON.stringify(filterQuery)}`);
         }
 
         //Ejecuta las Consultas para Paginación
 
-        // Conteo Total (Necesario para los headers)
+        // Conteo Total
         const totalDocuments = await Post.countDocuments(filterQuery);
 
         //Datos Paginados
@@ -70,7 +71,7 @@ class TimelineService {
             totalPages: totalPages,
             currentPage: currentPage,
             pageSize: pageSize,
-            isColdStart: isColdStart,
+            isNewUser: isNewUser,
             hasNextPage: currentPage < totalPages
         };
     }

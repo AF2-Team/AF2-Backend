@@ -28,10 +28,10 @@ const login = async (email, password) => {
   return { token, user: { id: user._id, user_name: user.user_name, email: user.email } };
 };
 
-const register = async (user_name, email, password) => {
+const register = async (user_name, full_name, email, password) => {
   //Validar que los datos necesarios 
-  if (!user_name || !email || !password) {
-    const error = new Error('Todos los campos (user_name, email, password) son obligatorios.');
+  if (!user_name || !full_name  || !email || !password) {
+    const error = new Error('Todos los campos (user_name, full_name, email, password) son obligatorios.');
     error.statusCode = 400;
     throw error;
   }

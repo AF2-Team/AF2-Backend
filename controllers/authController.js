@@ -17,8 +17,8 @@ const loginUser = async (req, res) => {
 
 const registerUser = async (req, res) => {
     try {
-        const { user_name, email, password } = req.body;
-        const newUser = await authService.register(user_name, email, password);
+        const { user_name, full_name, email, password } = req.body;
+        const newUser = await authService.register(user_name, full_name, email, password);
 
         res.status(201).json({
             message: 'Usuario registrado exitosamente.',
@@ -30,7 +30,4 @@ const registerUser = async (req, res) => {
     }
 };
 
-module.exports = {
-    loginUser,
-    registerUser,
-};
+module.exports = {loginUser, registerUser};

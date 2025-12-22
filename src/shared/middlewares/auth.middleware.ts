@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { JWTUtil } from '@utils/jwt';
+import { JWTUtil } from '@utils/jwt.util.js';
 
 export class AuthMiddleware {
     static authenticate(req: Request, res: Response, next: NextFunction): void {

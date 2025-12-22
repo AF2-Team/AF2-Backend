@@ -9,6 +9,8 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { AppConfig, Config } from '@config/app.config.js';
 import { AppError, NotFoundError, UnknownError } from '@errors';
+import { ANSI } from '@utils/ansi.util.js';
+import { Logger } from '@utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -19,11 +21,11 @@ export class App {
     constructor(config: AppConfig) {
         this.app = express();
         this.config = config;
+
+        Logger.natural(ANSI.success(`[+] Configuration loaded (${config.nodeEnv})`));
     }
 
     async initialize(): Promise<Express> {
-        console.log('  [~] Initializing application...\n');
-
         // 1. Middlewares básicos
         this.setupMiddlewares();
 
@@ -33,13 +35,14 @@ export class App {
         // 3. Manejo de errores
         this.setupErrorHandling();
 
-        console.log('  [+] Application initialized\n');
+        Logger.natural(ANSI.success('[+] Application initialized successfully\n'));
+        Logger.natural(ANSI.info(`Server running on ${ANSI.link(this.config.apiBaseUrl)}`));
+        Logger.natural(ANSI.info('Waiting for requests...\n'));
+
         return this.app;
     }
 
     private setupMiddlewares(): void {
-        console.log('  [~] Setting up middlewares...');
-
         // 1. Favicon handler (evita 404 innecesarios)
         this.app.get('/favicon.ico', (req, res) => res.status(204).end());
 
@@ -94,12 +97,11 @@ export class App {
             }),
         );
 
-        console.log('  [+] Middlewares loaded\n');
+        Logger.natural(ANSI.success('[+] Middlewares loaded'));
     }
 
     private async setupRoutes(): Promise<void> {
-        console.log('  [~] Setting up routes...');
-
+        Logger.natural('------ [ Setting up routes ] ------');
         const router = express.Router();
         const apiPrefix = `/api/v1`;
 
@@ -154,12 +156,14 @@ export class App {
 
             for (const moduleName of moduleNames) await this.loadModule(moduleName, modulesPath, router, apiPrefix);
         } catch (error: any) {
-            console.error('  --[X] Error loading modules:', error.message);
+            Logger.error(`Loading modules`, error);
         }
 
         this.app.use(apiPrefix, router);
 
-        console.log('  [+] Routes loaded\n');
+        Logger.natural('');
+        Logger.natural(ANSI.success(`[+] All routes loaded`));
+        Logger.natural(''.padEnd(35, '-'));
     }
 
     private async loadModule(
@@ -173,10 +177,7 @@ export class App {
 
             // Verificar si el archivo existe
             const stats = await import('fs/promises').then((fs) => fs.stat(routePath).catch(() => null));
-            if (!stats) {
-                console.warn(`[-] Module ${moduleName} has no route file`);
-                return;
-            }
+            if (!stats) return Logger.warn(`Module ${moduleName} has no route file`);
 
             // Importar dinámicamente
             const routeUrl = pathToFileURL(routePath);
@@ -189,14 +190,9 @@ export class App {
             const moduleRouter = module.default;
             router.use(`/${moduleName}`, moduleRouter);
 
-            console.log(`     >> + Loaded Module: ${this.config.apiBaseUrl}${apiPrefix}/${moduleName}`);
+            Logger.natural(`[+] Loaded: ${ANSI.link(`${this.config.apiBaseUrl}${apiPrefix}/${moduleName}`)}`);
         } catch (error: any) {
-            console.error(`  --[X] Failed to load module ${moduleName}:`, error.message);
-
-            // En desarrollo, mostrar más detalles
-            if (Config.isDevelopment()) {
-                console.error('Stack:', error.stack);
-            }
+            Logger.error(`Failed to load module ${moduleName}:`, error);
         }
     }
 
@@ -229,7 +225,7 @@ export class App {
         };
 
         // Extraer rutas del stack de Express
-        (this.app as any)._router?.stack?.forEach((layer: any) => {
+        (this.app as any).router?.stack?.forEach((layer: any) => {
             extractRoutes(layer);
         });
 
@@ -246,7 +242,7 @@ export class App {
         // 3. Manejador de errores global
         this.app.use((err: any, req: Request, res: Response, next: NextFunction) => {
             res.status(err.status || 500).json({
-                message: err.message || 'Internal Server Error',
+                message: err.userMessage || 'Internal Server Error',
             });
         });
     }

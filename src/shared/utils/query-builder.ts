@@ -1,4 +1,4 @@
-import { PaginationMetadata, ProcessedQueryFilters } from '@/core/types/api-query.type';
+import { PaginationMetadata, ProcessedQueryFilters } from '@rules/api-query.type.js';
 
 /**
  * QueryBuilder - Utilidad para procesar query parameters de la API

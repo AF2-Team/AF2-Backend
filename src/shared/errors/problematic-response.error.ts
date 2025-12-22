@@ -1,4 +1,4 @@
-import { AppError, AppErrorOptions } from './app.error.js';
+import { AppError, AppErrorOptions } from '@errors/app.error.js';
 
 export class ProblematicResponseError extends AppError {
     constructor(message: string = 'Internal Server Error', options: Partial<AppErrorOptions> = {}) {

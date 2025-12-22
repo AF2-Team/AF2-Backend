@@ -1,52 +1,84 @@
+import { ANSI } from '@utils/ansi.util.js';
+
 export interface ILoggerOptions {
-    meta?: any;
+    extension?: string[];
     firm?: string;
 }
 
-interface IFormatMessageOptions extends ILoggerOptions {
-    message: string;
-}
+type ErrorTypes = 'info' | 'log' | 'error' | 'warn';
 
 export class Logger {
-    private static getTimestamp(): string {
-        return new Date().toISOString();
+    private static resetFormatCode: string = ANSI.getCode('reset');
+    private static prefix: string = '>> ';
+
+    private static formatMessage(
+        type: ErrorTypes,
+        message: string,
+        { format, firm }: { format?: string; firm?: string } = {},
+    ): string {
+        const timestamp = new Date().toISOString();
+        const prefixFormat = format != null ? format : '';
+        const suffixFormat = ANSI.getCode('reset');
+        let logType: string = '';
+
+        if (firm != null) logType = `(${firm}) `;
+        logType += `${ANSI.getCode('underline')}${type.toUpperCase()}${ANSI.getCode('resetUnderline')}`;
+
+        return `${this.prefix}${prefixFormat}[${timestamp}] ${logType}${this.resetFormatCode}: ${message}${suffixFormat}`.trim();
     }
 
-    private static formatMessage(type: string, { message, meta, firm }: IFormatMessageOptions): string {
-        const timestamp = this.getTimestamp();
-        const metaStr = meta ? JSON.stringify(meta, null, 2) : '';
+    private static showLog(type: ErrorTypes, ...content: any[]) {
+        const uniqueSep = '[_!_]';
+        let _content: string | string[] = this.prefix + content.flat().join(uniqueSep + `\n${this.prefix}` + uniqueSep);
+        _content = _content.split(uniqueSep);
 
-        return `[${timestamp}] ${firm != '' ? `(${firm}) ` : ''}${type}: ${message} ${metaStr}`.trim();
+        console[type as ErrorTypes](..._content);
     }
 
-    static info(message: string, { meta, firm }: ILoggerOptions = {}): void {
-        console.log(this.formatMessage('INFO', { message, meta, firm }));
+    private static showPrefixedLog(type: ErrorTypes, ...content: any[]) {
+        const uniqueSep = '[¡_!_¡]';
+        let _content: string | string[] = this.prefix + content.flat().join(uniqueSep + `\n${this.prefix}` + uniqueSep);
+        _content = _content.split(uniqueSep);
+
+        console[type as ErrorTypes](..._content);
     }
 
-    static error(message: string, { meta: error, firm }: ILoggerOptions = {}): void {
-        console.error(this.formatMessage('ERROR', { message, meta: error, firm }));
+    static info(message: string, { extension, firm }: ILoggerOptions = {}): void {
+        const color = ANSI.getCode('magenta');
+
+        this.showLog('log', [
+            this.formatMessage('info', `${message}`, { format: color, firm }),
+            ...(extension as Array<string>),
+        ]);
     }
 
-    static warn(message: string, { meta, firm }: ILoggerOptions = {}): void {
-        console.warn(this.formatMessage('WARN', { message, meta, firm }));
+    static error(message: string, error: Error): void {
+        const reason: string = error ? error.message : '';
+        const stack: string = error && error?.stack ? error.stack : '';
+        const color = ANSI.getCode('error');
+
+        this.showLog('error', [
+            this.formatMessage('error', `${message}`, { format: color }),
+            `  ${color + ANSI.getCode('underline')}REASON:${this.resetFormatCode} ${reason}`,
+            `  ${color + ANSI.getCode('underline')}STACK:${this.resetFormatCode} ${stack}`,
+        ]);
     }
 
-    static debug(message: string, { meta, firm }: ILoggerOptions = {}): void {
-        if (process.env.NODE_ENV === 'development') console.debug(this.formatMessage('DEBUG', { message, meta, firm }));
+    static warn(message: string, { extension, firm }: ILoggerOptions = {}): void {
+        const color = ANSI.getCode('yellow');
+
+        this.showLog('warn', [
+            this.formatMessage('warn', `${message}`, { format: color, firm }),
+            ...(extension as Array<string>),
+        ]);
     }
 
-    static http(message: string, { meta, firm }: ILoggerOptions = {}): void {
-        console.log(this.formatMessage('HTTP', { message, meta, firm }));
-    }
+    static natural(message: string, extension?: ILoggerOptions['extension']): void {
+        extension = extension == undefined ? [] : extension;
 
-    static audit(operation: string, userId?: string, metadata?: any, firm?: string): void {
-        const auditData = {
-            operation,
-            userId,
-            timestamp: new Date(),
-            ...metadata,
-        };
-
-        console.log(this.formatMessage('AUDIT', { message: 'Security audit', meta: auditData, firm }));
+        this.showPrefixedLog(
+            'log',
+            [message, ...(extension as Array<string>)].filter((e) => e),
+        );
     }
 }

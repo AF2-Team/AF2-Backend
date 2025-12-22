@@ -1,0 +1,8 @@
+{
+    "verbose": false,
+    "resolveFullPaths": true,
+    "fileExtensions": {
+        "input": [".ts", ".tsx"],
+        "output": [".js", ".jsx"]
+    }
+}

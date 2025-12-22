@@ -1,11 +1,17 @@
-import { Logger } from '@utils/logger';
-import { AppError, ValidationError } from '@errors/app.error';
+import { AppError, ValidationError } from '@errors';
+import { Logger } from '@utils/logger.js';
+
+interface IOperation {
+    maxRetries?: number;
+    delayMs?: number;
+    args?: any;
+}
 
 export abstract class BaseService {
     protected serviceName: string;
 
-    constructor(serviceName: string) {
-        this.serviceName = serviceName;
+    constructor() {
+        this.serviceName = this.constructor.name;
     }
 
     protected validateRequired(data: Record<string, unknown>, requiredFields: string[]): void {
@@ -13,11 +19,9 @@ export abstract class BaseService {
             (field) => data[field] === undefined || data[field] === null || data[field] === '',
         );
 
-        if (missingFields.length > 0)
-            throw new ValidationError({
-                message: `Missing required fields: ${missingFields.join(', ')}`,
-                data: { missingFields },
-            });
+        if (missingFields.length > 0) {
+            throw new ValidationError(`Missing required fields: ${missingFields.join(', ')}`, missingFields);
+        }
     }
 
     protected sanitizeData<T>(data: Partial<T>, allowedFields: (keyof T)[]): Partial<T> {
@@ -35,18 +39,17 @@ export abstract class BaseService {
     }
 
     protected async retryOperation<T>(
-        operation: () => Promise<T>,
-        maxRetries: number = 3,
-        delayMs: number = 1000,
+        operation: (data: any) => Promise<T>,
+        { args = {}, maxRetries = 3, delayMs = 1000 }: IOperation,
     ): Promise<T> {
         let lastError: Error | null = null;
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                return await operation();
+                return await operation(args);
             } catch (error) {
                 lastError = error as Error;
-                Logger.warn(`[${this.serviceName}] Attempt ${attempt} failed:`, error);
+                Logger.warn(`[${this.serviceName}] Attempt ${attempt} failed:`, { meta: error });
 
                 if (attempt < maxRetries) await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
             }

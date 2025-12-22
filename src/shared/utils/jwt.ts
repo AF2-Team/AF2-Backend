@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 
 export class JWTUtil {
-    private static readonly SECRET: jwt.Secret = 'your-secret-key-change-in-production';
+    private static readonly SECRET: jwt.Secret = 'a';
     private static readonly EXPIRES_IN: jwt.SignOptions['expiresIn'] = '7d';
     private static readonly REFRESH_EXPIRES_IN: jwt.SignOptions['expiresIn'] = '30d';
 

@@ -1,11 +1,17 @@
-import { Logger } from '@utils/logger';
+import { Logger } from '@utils/logger.js';
 
-export interface QueryOptions<T> {
-    skip?: number;
-    limit?: number;
-    sort?: Record<string, 'asc' | 'desc' | 1 | -1>;
-    select?: string[];
-}
+type BaseQueryOptions = {
+    page?: string;
+    limit?: string;
+};
+
+type DynamicQueryOptions = {
+    [K in `order.${string}`]?: 'asc' | 'desc';
+} & {
+    [K in `q.${string}`]?: string | number;
+};
+
+export type QueryOptions = BaseQueryOptions & DynamicQueryOptions;
 
 export abstract class BaseRepository<T, ID = string> {
     protected readonly repositoryName: string;
@@ -16,6 +22,7 @@ export abstract class BaseRepository<T, ID = string> {
 
     protected async executeWithLogging<R>(operation: string, action: () => Promise<R>): Promise<R> {
         const startTime = Date.now();
+        const firm = crypto.randomUUID();
         Logger.info(`[${this.repositoryName}] Starting ${operation}...`);
 
         try {
@@ -25,14 +32,14 @@ export abstract class BaseRepository<T, ID = string> {
             Logger.info(`[${this.repositoryName}] ${operation} completed in ${duration}ms`);
             return result;
         } catch (error) {
-            Logger.error(`[${this.repositoryName}] Error in ${operation}:`, error);
+            Logger.error(`[${this.repositoryName}] Error in ${operation}:`, { meta: error });
             throw error;
         }
     }
 
     abstract create(data: Partial<T>): Promise<T>;
 
-    abstract find(filter: Partial<T> | Record<string, unknown>, options?: QueryOptions<T>): Promise<T[]>;
+    abstract find(filter: Partial<T> | Record<string, unknown>, options?: QueryOptions): Promise<T[]>;
 
     abstract findById(id: ID): Promise<T | null>;
 
@@ -40,11 +47,10 @@ export abstract class BaseRepository<T, ID = string> {
 
     abstract update(id: ID, data: Partial<T>): Promise<T | null>;
 
-    abstract delete(id: ID): Promise<boolean>;
+    abstract delete(id: ID | ID[]): Promise<boolean>;
 
     abstract count(filter: Partial<T> | Record<string, unknown>): Promise<number>;
 
-    // Sanitización genérica
     protected sanitizeFilter(filter: Partial<T> | Record<string, unknown>): Partial<T> | Record<string, unknown> {
         const sanitized: Record<string, unknown> = {};
 

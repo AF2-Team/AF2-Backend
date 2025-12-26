@@ -8,7 +8,7 @@ const __dirname = dirname(__filename);
 
 dotenv.config({ path: resolve(__dirname, '..', '..', '.env') });
 
-export interface AppConfig {
+export interface IAppConfig {
     port: number;
     host: string;
     protocol: string;
@@ -19,24 +19,35 @@ export interface AppConfig {
     enableHelmet: boolean;
     enableMorgan: boolean;
     enableDatabase: boolean;
-    database: {
-        type: 'mongodb' | 'postgres' | undefined;
-        host?: string;
-        port?: number;
-        name?: string;
-        username?: string;
-        password?: string;
-        uri?: string;
+    databases: {
+        enabled: string[]; // ['postgres', 'mongodb']
+        default: string;
+    };
+    security: {
+        jwtSecret: string;
+        jwtExpiresIn: string;
+        bcryptRounds: number;
+    };
+    limits: {
+        requestSize: string;
+        rateLimitWindow: number;
+        rateLimitMax: number;
     };
 }
 
-export class Config {
-    static load(): AppConfig {
+export class AppConfig {
+    static load(): IAppConfig {
         const nodeEnv = process.env.NODE_ENV || 'development';
-        const protocol: string = Number(process.env.SECURE_PROTOCOL) || 0 ? 'https' : 'http';
-        const host: string = process.env.DOMAIN || process.env.API_HOST || '127.0.0.1';
-        const port: number = parseInt(process.env.PORT || '3000', 10);
-        const apiBaseUrl: string = `${protocol ? `${protocol}://` : ''}${host}${port ? `:${port}` : ''}`;
+        const protocol = process.env.SECURE_PROTOCOL === 'true' ? 'https' : 'http';
+        const host = process.env.DOMAIN || process.env.API_HOST || '127.0.0.1';
+        const port = parseInt(process.env.PORT || '3000', 10);
+        const apiBaseUrl = `${protocol}://${host}${port !== 80 && port !== 443 ? `:${port}` : ''}`;
+
+        // Parsear bases de datos habilitadas
+        const enabledDatabases = (process.env.ENABLED_DATABASES ?? '')
+            .split(',')
+            .map((db) => db.trim())
+            .filter((db) => db);
 
         return {
             port,
@@ -45,22 +56,28 @@ export class Config {
             nodeEnv,
             apiBaseUrl,
             corsOptions: {
-                methods: ['GET', 'PUT', 'POST', 'DELETE'],
+                methods: ['GET', 'PUT', 'POST', 'DELETE', 'PATCH', 'OPTIONS'],
                 credentials: true,
-                origin: process.env.CORS_ORIGIN || '*',
+                origin: process.env.CORS_ORIGIN?.split(',') || '*',
+                allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
             },
             enableCors: process.env.ENABLE_CORS === 'true',
             enableHelmet: process.env.ENABLE_HELMET === 'true',
             enableMorgan: process.env.ENABLE_MORGAN === 'true',
             enableDatabase: process.env.ENABLE_DATABASE === 'true',
-            database: {
-                type: (process.env.DB_TYPE as 'mongodb' | 'postgres') || undefined,
-                host: process.env.DB_HOST,
-                port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : undefined,
-                name: process.env.DB_NAME,
-                username: process.env.DB_USERNAME,
-                password: process.env.DB_PASSWORD,
-                uri: process.env.DB_URI,
+            databases: {
+                enabled: enabledDatabases,
+                default: process.env.DEFAULT_DATABASE || enabledDatabases[0],
+            },
+            security: {
+                jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+                jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
+                bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '10', 10),
+            },
+            limits: {
+                requestSize: process.env.REQUEST_SIZE_LIMIT || '10mb',
+                rateLimitWindow: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
+                rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
             },
         };
     }
@@ -71,5 +88,13 @@ export class Config {
 
     static isDevelopment(): boolean {
         return this.load().nodeEnv === 'development';
+    }
+
+    static getEnabledDatabases(): string[] {
+        return this.load().databases.enabled;
+    }
+
+    static getDefaultDatabase(): string {
+        return this.load().databases.default;
     }
 }

@@ -24,7 +24,7 @@
             "@config": ["config/index.ts"],
             "@database/*": ["database/*"],
             "@database": ["database/index.ts"],
-            "@connectors/*": ["database/connectors/*"],
+            "@db-connectors/*": ["database/connectors/*"],
             "@migrations/*": ["database/migrations/*"],
             "@models/*": ["database/models/*"],
             "@repositories/*": ["database/repositories/*"],

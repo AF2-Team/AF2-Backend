@@ -31,8 +31,9 @@ export abstract class BaseRepository<T, ID = string> {
 
             Logger.info(`[${this.repositoryName}] ${operation} completed in ${duration}ms`);
             return result;
-        } catch (error) {
-            Logger.error(`[${this.repositoryName}] Error in ${operation}:`, { meta: error });
+        } catch (error: any) {
+            Logger.error(`Error in ${operation}:`, error);
+
             throw error;
         }
     }

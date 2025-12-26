@@ -4,3 +4,4 @@ export { ValidationError } from '@errors/validation.error.js';
 export { NotFoundError } from '@errors/not-found.error.js';
 export { AuthError, ForbiddenError } from '@errors/auth.error.js';
 export { ProblematicResponseError } from '@errors/problematic-response.error.js';
+export { DatabaseError, DatabaseConnectionError, DatabaseQueryError } from '@errors/database.error.js';

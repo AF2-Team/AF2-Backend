@@ -1,4 +1,4 @@
-import { Config } from '@config/app.config.js';
+import { AppConfig } from '@config/app.config.js';
 import { nanoid } from 'nanoid';
 
 export interface AppErrorOptions {
@@ -74,7 +74,7 @@ export class AppError extends Error {
     }
 
     public toJSON() {
-        const isDev = Config.isDevelopment();
+        const isDev = AppConfig.isDevelopment();
 
         return {
             success: false,

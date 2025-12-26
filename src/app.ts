@@ -4,11 +4,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
-import { readdirSync } from 'fs';
+import { readdirSync, promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
-import { AppConfig, Config } from '@config/app.config.js';
-import { AppError, NotFoundError, UnknownError } from '@errors';
+import { AppConfig, IAppConfig } from '@config/app.config.js';
+import { NotFoundError } from '@errors';
 import { ANSI } from '@utils/ansi.util.js';
 import { Logger } from '@utils/logger.js';
 
@@ -16,13 +16,29 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export class App {
     private app: Express;
-    private config: AppConfig;
+    private config: IAppConfig;
 
-    constructor(config: AppConfig) {
+    constructor(config: IAppConfig) {
         this.app = express();
         this.config = config;
 
         Logger.natural(ANSI.success(`[+] Configuration loaded (${config.nodeEnv})`));
+    }
+
+    async start(): Promise<void> {
+        const server = await this.initialize();
+
+        return new Promise((resolve) => {
+            const httpServer = http.createServer(server).listen(this.config.port, this.config.host, () => {
+                // Do
+                resolve();
+            });
+
+            // Configurar timeout del servidor
+            httpServer.setTimeout(30000);
+            httpServer.keepAliveTimeout = 65000;
+            httpServer.headersTimeout = 66000;
+        });
     }
 
     async initialize(): Promise<Express> {
@@ -36,7 +52,7 @@ export class App {
         this.setupErrorHandling();
 
         Logger.natural(ANSI.success('[+] Application initialized successfully\n'));
-        Logger.natural(ANSI.info(`Server running on ${ANSI.link(this.config.apiBaseUrl)}`));
+        Logger.natural(ANSI.info(`Server running on ${ANSI.link(this.config.apiBaseUrl)}${ANSI.getCode('reset')}`));
         Logger.natural(ANSI.info('Waiting for requests...\n'));
 
         return this.app;
@@ -56,16 +72,16 @@ export class App {
         if (this.config.enableHelmet) {
             this.app.use(
                 helmet({
-                    contentSecurityPolicy: Config.isProduction(),
-                    crossOriginEmbedderPolicy: Config.isProduction(),
-                    hsts: Config.isProduction(),
+                    contentSecurityPolicy: AppConfig.isProduction(),
+                    crossOriginEmbedderPolicy: AppConfig.isProduction(),
+                    hsts: AppConfig.isProduction(),
                 }),
             );
         }
 
         // 5. Logging de requests
         if (this.config.enableMorgan) {
-            const format = Config.isDevelopment() ? 'dev' : 'combined';
+            const format = AppConfig.isDevelopment() ? 'dev' : 'combined';
             this.app.use(morgan(format));
         }
 
@@ -93,7 +109,7 @@ export class App {
         // 9. Static files
         this.app.use(
             express.static('public', {
-                maxAge: Config.isProduction() ? '1d' : 0,
+                maxAge: AppConfig.isProduction() ? '1d' : 0,
             }),
         );
 
@@ -176,7 +192,7 @@ export class App {
             const routePath = path.join(modulesPath, moduleName, '_.route.ts');
 
             // Verificar si el archivo existe
-            const stats = await import('fs/promises').then((fs) => fs.stat(routePath).catch(() => null));
+            const stats = await fs.stat(routePath).catch(() => null);
             if (!stats) return Logger.warn(`Module ${moduleName} has no route file`);
 
             // Importar dinámicamente
@@ -190,10 +206,35 @@ export class App {
             const moduleRouter = module.default;
             router.use(`/${moduleName}`, moduleRouter);
 
-            Logger.natural(`[+] Loaded: ${ANSI.link(`${this.config.apiBaseUrl}${apiPrefix}/${moduleName}`)}`);
+            Logger.natural(
+                `[+] Loaded: ${ANSI.link(`${this.config.apiBaseUrl}${apiPrefix}/${moduleName}`)}${ANSI.getCode(
+                    'reset',
+                )}`,
+            );
         } catch (error: any) {
             Logger.error(`Failed to load module ${moduleName}:`, error);
         }
+    }
+
+    private setupErrorHandling(): void {
+        // 2. Middleware para capturar 404 de ruta
+        this.app.use((req: Request, res: Response, next: NextFunction) => {
+            const error = new NotFoundError('Route', req.originalUrl);
+            next(error); // Pasamos el error al manejador global
+        });
+
+        // 3. Manejador de errores global
+        this.app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+            res.status(err.status || 500).json({
+                message: err.userMessage || 'Internal Server Error',
+            });
+        });
+    }
+
+    private setupDatabase(): void {}
+
+    getExpressApp(): Express {
+        return this.app;
     }
 
     private getRoutes(): any[] {
@@ -230,40 +271,5 @@ export class App {
         });
 
         return routes;
-    }
-
-    private setupErrorHandling(): void {
-        // 2. Middleware para capturar 404 de ruta
-        this.app.use((req: Request, res: Response, next: NextFunction) => {
-            const error = new NotFoundError('Route', req.originalUrl);
-            next(error); // Pasamos el error al manejador global
-        });
-
-        // 3. Manejador de errores global
-        this.app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-            res.status(err.status || 500).json({
-                message: err.userMessage || 'Internal Server Error',
-            });
-        });
-    }
-
-    async start(): Promise<void> {
-        const server = await this.initialize();
-
-        return new Promise((resolve) => {
-            const httpServer = http.createServer(server).listen(this.config.port, this.config.host, () => {
-                // Do
-                resolve();
-            });
-
-            // Configurar timeout del servidor
-            httpServer.setTimeout(30000);
-            httpServer.keepAliveTimeout = 65000;
-            httpServer.headersTimeout = 66000;
-        });
-    }
-
-    getExpressApp(): Express {
-        return this.app;
     }
 }

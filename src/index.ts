@@ -1,12 +1,12 @@
-import { ANSI } from '@utils/ansi.util.js';
 import { App } from './app.js';
-import { Config } from '@config/app.config.js';
+import { AppConfig } from '@config/app.config.js';
 import { Logger } from '@utils/logger.js';
+//import DatabaseManager from '@database/index.js';
 
 async function bootstrap() {
     try {
         // Cargar configuración
-        const config = Config.load();
+        const config = AppConfig.load();
 
         // Crear aplicación
         const app = new App(config);
@@ -29,6 +29,8 @@ function setupGracefulShutdown(app: any) {
         process.on(signal, async () => {
             console.log(`\n${signal} received, starting graceful shutdown...`);
             console.log('[+] Application shutdown complete');
+
+            //if (['SIGTERM', 'SIGINT'].includes(signal)) await DatabaseManager.shutdown();
             process.exit(0);
         });
     });

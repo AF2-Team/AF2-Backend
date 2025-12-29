@@ -13,11 +13,13 @@ type DynamicQueryOptions = {
 
 export type QueryOptions = BaseQueryOptions & DynamicQueryOptions;
 
-export abstract class BaseRepository<T, ID = string> {
+export abstract class BaseRepository<T, ID extends any = string> {
     protected readonly repositoryName: string;
+    protected readonly databaseName: string;
 
-    constructor(repositoryName: string) {
+    constructor(repositoryName: string, databaseName: string = 'default') {
         this.repositoryName = repositoryName;
+        this.databaseName = databaseName;
     }
 
     protected async executeWithLogging<R>(operation: string, action: () => Promise<R>): Promise<R> {
@@ -40,7 +42,7 @@ export abstract class BaseRepository<T, ID = string> {
 
     abstract create(data: Partial<T>): Promise<T>;
 
-    abstract find(filter: Partial<T> | Record<string, unknown>, options?: QueryOptions): Promise<T[]>;
+    abstract find(filter: Partial<T> | Record<string, unknown>, options?: unknown): Promise<T[]>;
 
     abstract findById(id: ID): Promise<T | null>;
 

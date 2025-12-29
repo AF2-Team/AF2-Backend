@@ -1,12 +1,8 @@
-/**
- * Tipos específicos para el sistema multi-database
- */
+export type IDatabaseDialect = 'postgres' | 'mysql' | 'sqlite' | 'mariadb';
+export type IDatabaseType = 'postgresql' | 'mysql' | 'mongodb';
 
-export type DatabaseType = 'postgresql' | 'mysql' | 'mongodb';
-export type DatabaseDialect = 'postgres' | 'mysql' | 'sqlite' | 'mariadb';
-
-export interface DatabaseConfig {
-    type: DatabaseType;
+export interface IDatabaseConfig {
+    type: IDatabaseType;
     name: string; // Identificador único: 'main', 'analytics', 'cache'
     host?: string;
     port?: number;
@@ -14,7 +10,7 @@ export interface DatabaseConfig {
     username?: string;
     password?: string;
     uri?: string;
-    dialect?: DatabaseDialect;
+    dialect?: IDatabaseDialect;
     timezone?: string;
     logging?: boolean;
     pool?: {
@@ -29,46 +25,36 @@ export interface DatabaseConfig {
     };
     enabled: boolean;
     isDefault: boolean;
-    nodeEnv: string;
+    folderName: string;
 }
 
-export interface DatabaseInstance {
+export interface IDatabaseInstance {
     name: string;
-    type: DatabaseType;
+    type: IDatabaseType;
     connector: any; // BaseDatabaseConnector
-    config: DatabaseConfig;
+    config: IDatabaseConfig;
     isConnected: boolean;
     models: Map<string, any>;
 }
 
-export interface DatabaseHealth {
+export interface IDatabaseHealth {
     [databaseName: string]: {
         connected: boolean;
         type: string;
         lastPing: Date;
-        models: number;
     };
 }
 
-export interface DatabaseStats {
-    total: number;
-    connected: number;
-    byType: Record<DatabaseType, number>;
-    databases: Record<
-        string,
-        {
-            type: DatabaseType;
-            connected: boolean;
-            models: number;
-        }
-    >;
-}
-
 // Tipos para operaciones multi-database
-export interface CrossDatabaseOperation<T = any> {
+export interface ICrossDatabaseOperation<T = any> {
     database: string;
     success: boolean;
     data?: T;
     error?: string;
     duration?: number;
+}
+
+export interface IModelContract {
+    modelName: string;
+    init(dbInstance: unknown): unknown;
 }

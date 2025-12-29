@@ -36,7 +36,11 @@ export interface IAppConfig {
 }
 
 export class AppConfig {
+    private static _configCache: IAppConfig | null = null;
+
     static load(): IAppConfig {
+        if (this._configCache) return this._configCache;
+
         const nodeEnv = process.env.NODE_ENV || 'development';
         const protocol = process.env.SECURE_PROTOCOL === 'true' ? 'https' : 'http';
         const host = process.env.DOMAIN || process.env.API_HOST || '127.0.0.1';
@@ -49,7 +53,7 @@ export class AppConfig {
             .map((db) => db.trim())
             .filter((db) => db);
 
-        return {
+        const config = {
             port,
             host,
             protocol,
@@ -80,6 +84,9 @@ export class AppConfig {
                 rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
             },
         };
+        this._configCache = config;
+
+        return config;
     }
 
     static isProduction(): boolean {

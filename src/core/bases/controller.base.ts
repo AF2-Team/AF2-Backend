@@ -232,10 +232,6 @@ export abstract class ControllerBase {
         this.requestStartTime = 0;
     }
 
-    // ============================================
-    // MÉTODOS PÚBLICOS PARA CONTROLADORES HIJOS
-    // ============================================
-
     /**
      * Envía respuesta exitosa formateada
      */

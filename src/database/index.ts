@@ -1,8 +1,7 @@
-import { DatabaseConfig, DatabaseHealth, DatabaseStats, DatabaseType } from '@rules/database.type.js';
+import { IDatabaseConfig, IDatabaseHealth } from '@rules/database.type.js';
 import { BaseDatabaseConnector } from '@bases/db-connector.base.js';
-import { databaseConfigs } from '@config/database.config.js';
-import { PostgresConnector } from '@database/connectors/postgres.connector.js';
-import { MongoConnector } from '@db-connectors/mongoose.connector.js';
+import { DatabaseConfig } from '@config/database.config.js';
+import { SequelizeConnector } from '@database/connectors/sequelize.connector.js';
 
 export class DatabaseManager {
     private static instance: DatabaseManager;
@@ -11,14 +10,13 @@ export class DatabaseManager {
     private constructor() {}
 
     static getInstance(): DatabaseManager {
-        if (!DatabaseManager.instance) {
-            DatabaseManager.instance = new DatabaseManager();
-        }
+        if (!DatabaseManager.instance) DatabaseManager.instance = new DatabaseManager();
+
         return DatabaseManager.instance;
     }
 
     async initialize(): Promise<void> {
-        for (const config of databaseConfigs) {
+        for (const config of DatabaseConfig.loadAll()) {
             if (!config.enabled) continue;
 
             const connector = this.createConnector(config);
@@ -29,13 +27,11 @@ export class DatabaseManager {
         }
     }
 
-    private createConnector(config: DatabaseConfig): BaseDatabaseConnector {
+    private createConnector(config: IDatabaseConfig): BaseDatabaseConnector {
         switch (config.type) {
             case 'postgresql':
             case 'mysql':
-                return new PostgresConnector(config);
-            case 'mongodb':
-                return new MongoConnector(config);
+                return new SequelizeConnector(config);
             default:
                 throw new Error(`Unsupported database type: ${config.type}`);
         }
@@ -43,66 +39,40 @@ export class DatabaseManager {
 
     getConnector(name: string): BaseDatabaseConnector {
         const connector = this.connectors.get(name);
-        if (!connector) {
-            throw new Error(`Database connector '${name}' not found`);
-        }
+        if (!connector) throw new Error(`Database connector '${name}' not found`);
         return connector;
     }
 
     getDefaultConnector(): BaseDatabaseConnector {
-        const defaultConfig = databaseConfigs.find((c) => c.isDefault);
-        if (!defaultConfig) {
-            throw new Error('No default database configured');
-        }
+        const defaultConfig = DatabaseConfig.loadDefault();
+        if (!defaultConfig) throw new Error('No default database configured');
         return this.getConnector(defaultConfig.name);
     }
 
-    async shutdown(): Promise<void> {
-        for (const connector of this.connectors.values()) {
-            await connector.disconnect();
+    async shutdown(name?: string): Promise<void> {
+        if (name) {
+            if (this.connectors.has(name)) return;
+
+            this.connectors.get(name)?.disconnect();
+
+            return;
         }
+
+        for (const connector of this.connectors.values()) await connector.disconnect();
         this.connectors.clear();
     }
 
-    getHealth(): DatabaseHealth {
-        const health: DatabaseHealth = {};
+    getHealth(): IDatabaseHealth {
+        const health: IDatabaseHealth = {};
 
         for (const [name, connector] of this.connectors) {
             health[name] = {
-                connected: connector.isDatabaseConnected(),
+                connected: connector.isConnected(),
                 type: connector.getDatabaseType(),
                 lastPing: new Date(),
-                models: connector.getModelCount(),
             };
         }
 
         return health;
-    }
-
-    getStats(): DatabaseStats {
-        const stats: DatabaseStats = {
-            total: this.connectors.size,
-            connected: 0,
-            byType: {
-                postgresql: 0,
-                mysql: 0,
-                mongodb: 0,
-            },
-            databases: {},
-        };
-
-        for (const [name, connector] of this.connectors) {
-            const connected = connector.isDatabaseConnected();
-            if (connected) stats.connected++;
-
-            stats.byType[connector.getDatabaseType()]++;
-            stats.databases[name] = {
-                type: connector.getDatabaseType(),
-                connected,
-                models: connector.getModelCount(),
-            };
-        }
-
-        return stats;
     }
 }

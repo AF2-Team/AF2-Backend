@@ -1,76 +1,71 @@
-import { DatabaseConfig, DatabaseType } from '@rules/database.type.js';
+import { IDatabaseConfig, IDatabaseType } from '@rules/database.type.js';
 
-/**
- * Interfaz que deben implementar todos los conectores
- */
 export interface IDatabaseConnector {
-    connect(): Promise<void>;
+    connect(): Promise<boolean>;
     disconnect(): Promise<void>;
     ping(): Promise<boolean>;
-    sync(options?: any): Promise<void>;
-    getModel<T = any>(modelName: string): T;
-    getRepository<T = any>(modelName: string): any;
     authenticate(): Promise<boolean>;
-    listModels(): string[];
+
+    getModel<T = any>(modelName: string): T;
     hasModel(modelName: string): boolean;
+    listModels(): string[];
+    registerModel(name: string, instance: any): boolean;
+    clearModels(): boolean;
+
+    beforeConnect(): Promise<void> | void;
+    afterConnect(): Promise<void> | void;
+    beforeDisconnect(): Promise<void> | void;
+    afterDisconnect(): Promise<void> | void;
 }
 
-/**
- * Clase base abstracta para conectores de base de datos
- */
 export abstract class BaseDatabaseConnector implements IDatabaseConnector {
-    protected models: Map<string, any> = new Map();
-    protected isConnected: boolean = false;
-    protected config: DatabaseConfig;
+    protected readonly config: IDatabaseConfig;
+    protected readonly models: Map<string, any> = new Map();
+    protected connectionStatus: boolean = false;
+    protected connector: any;
 
-    constructor(config: DatabaseConfig) {
+    constructor(config: IDatabaseConfig) {
         this.config = config;
     }
 
-    // Métodos abstractos que deben implementar las clases hijas
-    abstract connect(): Promise<void>;
+    abstract connect(): Promise<boolean>;
     abstract disconnect(): Promise<void>;
     abstract ping(): Promise<boolean>;
-    abstract sync(options?: any): Promise<void>;
-    abstract getModel<T = any>(modelName: string): T;
-    abstract getRepository<T = any>(modelName: string): any;
 
-    // Métodos comunes con implementación base
-    async authenticate(): Promise<boolean> {
-        try {
-            const isAlive = await this.ping();
-            if (isAlive) {
-                console.log(`✅ ${this.config.type.toUpperCase()} '${this.config.name}' authenticated`);
-                return true;
-            }
-            return false;
-        } catch (error) {
-            console.error(`❌ ${this.config.type.toUpperCase()} '${this.config.name}' authentication failed:`, error);
-            return false;
-        }
+    isConnected(): boolean {
+        return this.connectionStatus;
     }
 
-    listModels(): string[] {
-        return Array.from(this.models.keys());
+    protected setStatus(status: boolean) {
+        this.connectionStatus = status;
+    }
+
+    async authenticate(): Promise<boolean> {
+        return this.ping();
+    }
+
+    getModel<T = any>(modelName: string): T {
+        if (!this.models.has(modelName))
+            throw new Error(`Model '${modelName}' not registered in DB '${this.config.name}'`);
+
+        return this.models.get(modelName);
     }
 
     hasModel(modelName: string): boolean {
         return this.models.has(modelName);
     }
 
-    getModelCount(): number {
-        return this.models.size;
+    listModels(): string[] {
+        return Array.from(this.models.keys());
     }
 
-    isDatabaseConnected(): boolean {
-        return this.isConnected;
+    registerModel(name: string, instance: any): boolean {
+        this.models.set(name, instance);
+
+        return true;
     }
 
-    getConfig(): DatabaseConfig {
-        return { ...this.config };
-    }
-
-    getDatabaseType(): DatabaseType {
+    getDatabaseType(): IDatabaseType {
         return this.config.type;
     }
 
@@ -78,32 +73,17 @@ export abstract class BaseDatabaseConnector implements IDatabaseConnector {
         return this.config.name;
     }
 
-    // Métodos protegidos para uso interno de las clases hijas
-    protected registerModel(modelName: string, modelInstance: any): void {
-        if (this.models.has(modelName)) {
-            console.warn(`⚠️  Model '${modelName}' already registered, overwriting`);
-        }
-        this.models.set(modelName, modelInstance);
-        console.log(`📦 Model '${modelName}' registered in ${this.config.type} '${this.config.name}'`);
-    }
-
-    protected clearModels(): void {
+    clearModels(): boolean {
         this.models.clear();
+
+        return true;
     }
 
-    protected setConnectedStatus(connected: boolean): void {
-        this.isConnected = connected;
-        const status = connected ? 'connected' : 'disconnected';
-        console.log(`🔌 ${this.config.type.toUpperCase()} '${this.config.name}' ${status}`);
-    }
+    async beforeConnect(): Promise<void> {}
 
-    // Hook para limpieza antes de desconectar
-    protected async beforeDisconnect(): Promise<void> {
-        // Puede ser sobrescrito por clases hijas
-    }
+    async afterConnect(): Promise<void> {}
 
-    // Hook para inicialización después de conectar
-    protected async afterConnect(): Promise<void> {
-        // Puede ser sobrescrito por clases hijas
-    }
+    async beforeDisconnect(): Promise<void> {}
+
+    async afterDisconnect(): Promise<void> {}
 }

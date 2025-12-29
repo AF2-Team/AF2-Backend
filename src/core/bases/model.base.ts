@@ -1,32 +1,24 @@
-export interface IBaseModelDefinition {
-    name: string;
+export interface IBaseModel {
+    modelName: string;
+    supportedDatabases: string[];
+    init(db: unknown): unknown;
+    associate?(models: Record<string, unknown>): void;
 }
 
 export abstract class BaseModel {
-    /**
-     * Nombre lógico del modelo (User, Order, etc.)
-     */
     static get modelName(): string {
         return this.name;
     }
 
-    /**
-     * Tipo de base de datos soportado por el modelo
-     * Ej: ['postgresql'], ['mongodb'], ['postgresql','mongodb']
-     */
     static get supportedDatabases(): string[] {
         return [];
     }
 
-    /**
-     * Inicializa el modelo según el tipo de conector
-     */
-    static init(_dbInstance: unknown): unknown {
-        throw new Error('init() must be implemented');
+    static definition(): Record<string, any> {
+        throw new Error('definition() must be implemented');
     }
 
-    /**
-     * Relaciones (solo aplica a SQL)
-     */
-    static associate?(_models: Record<string, unknown>): void;
+    static init(_dbInstance: unknown): unknown {
+        throw new Error('Must implement init');
+    }
 }

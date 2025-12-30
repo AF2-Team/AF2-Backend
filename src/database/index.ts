@@ -2,6 +2,7 @@ import { IDatabaseConfig, IDatabaseHealth } from '@rules/database.type.js';
 import { BaseDatabaseConnector } from '@bases/db-connector.base.js';
 import { DatabaseConfig } from '@config/database.config.js';
 import { SequelizeConnector } from '@database/connectors/sequelize.connector.js';
+import { MongooseConnector } from '@database/connectors/mongoose.connector.js';
 import { Logger } from '@utils/logger.js';
 import { readdirSync, promises as fs } from 'fs';
 import path from 'path';
@@ -14,7 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 class DatabaseManager {
     private connectors: Map<string, BaseDatabaseConnector> = new Map();
     private repositories: Map<string, any> = new Map();
-
+  
     constructor() {}
 
     async initialize(): Promise<void> {
@@ -99,6 +100,8 @@ class DatabaseManager {
             case 'postgresql':
             case 'mysql':
                 return new SequelizeConnector(config);
+            case 'mongodb': // <--- AGREGAR ESTO
+                return new MongooseConnector(config);    
             default:
                 throw new Error(`Unsupported database type: ${config.type}`);
         }

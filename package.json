@@ -50,7 +50,7 @@
         "joi": "^18.0.2",
         "jsonwebtoken": "^9.0.3",
         "mime-types": "^3.0.2",
-        "mongoose": "^9.0.2",
+        "mongoose": "^9.1.0",
         "morgan": "^1.10.1",
         "multer": "^2.0.2",
         "nanoid": "^5.1.6",

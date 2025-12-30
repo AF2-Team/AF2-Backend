@@ -125,18 +125,18 @@ export abstract class ControllerBase {
      * Maneja la respuesta automáticamente si el método no lo hizo
      */
     private handleResponseIfNeeded(result: any): void {
-        // Solo manejar si:
-        // 1. Hay un resultado
-        // 2. La respuesta no se ha enviado
-        // 3. No es un stream o tipo especial de respuesta
+        // CORRECCIÓN: Si la respuesta ya se envió (ej. usando this.success), salimos inmediatamente.
+        if (this.currentResponse && this.currentResponse.headersSent) return;
+
+        // Solo manejar si hay un resultado y no es un stream
         if (
             result !== undefined &&
             this.currentResponse &&
-            !this.currentResponse.headersSent &&
             !this.isStreamResponse(result)
         ) {
             this.sendAutoResponse(result);
         } else {
+            // Solo lanzamos error si no se envió nada Y tampoco se retornó nada
             this.sendErrorResponse(new ProblematicResponseError());
         }
     }

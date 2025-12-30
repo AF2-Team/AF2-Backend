@@ -56,8 +56,20 @@ class DatabaseManager {
             await fs.access(dbInstanceRepoPath);
 
             const repoNames = readdirSync(dbInstanceRepoPath, { withFileTypes: true })
-                .filter((dirent) => dirent.isFile() && !/^(index)/.test(dirent.name))
-                .map((dirent) => dirent.name);
+                .filter((dirent) => dirent.isFile() && !/^(index)/.test(dirent.name) && /\.(js|ts)$/.test(dirent.name))
+                .map((dirent) => dirent.name)
+                .reduce((acu: string[], cur: string) => {
+                    const index = acu.findIndex((name: string) => {
+                        const onlyName = cur.replace(/\.(ts|js)$/, '.');
+
+                        return name.includes(onlyName);
+                    });
+
+                    if (index === -1) acu.push(cur);
+                    else if (index !== -1) if (!/\.js$/.test(acu[index]) && /\.js$/.test(cur)) acu[index] = cur;
+
+                    return acu;
+                }, []);
 
             for (const repoName of repoNames) {
                 const repoPath = path.join(dbInstanceRepoPath, repoName);
@@ -118,6 +130,12 @@ class DatabaseManager {
 
             return { connectorName, repoName };
         });
+    }
+
+    async shutdown(): Promise<void> {
+        for (const connector of this.connectors.values()) await connector.disconnect();
+
+        this.connectors.clear();
     }
 
     getHealth(): IDatabaseHealth {

@@ -193,11 +193,19 @@ export class App {
         apiPrefix: string,
     ): Promise<void> {
         try {
-            const routePath = path.join(modulesPath, moduleName, '_.route.ts');
+            const baseRoutePath = path.join(modulesPath, moduleName, '_.route');
+            let routePath: string | undefined;
 
             // Verificar si el archivo existe
-            const stats = await fs.stat(routePath).catch(() => null);
-            if (!stats) return Logger.warn(`Module ${moduleName} has no route file`);
+            for (const _routePath of [baseRoutePath + '.js', baseRoutePath + '.ts']) {
+                const stats = await fs.stat(_routePath).catch(() => null);
+                if (stats) {
+                    routePath = _routePath;
+                    break;
+                }
+            }
+
+            if (routePath == null) return Logger.warn(`Module ${moduleName} has no route file`);
 
             // Importar dinámicamente
             const routeUrl = pathToFileURL(routePath);

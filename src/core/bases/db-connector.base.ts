@@ -104,8 +104,20 @@ export abstract class BaseDatabaseConnector implements IDatabaseConnector {
             await fs.access(modelsPath);
 
             const modelNames = readdirSync(modelsPath, { withFileTypes: true })
-                .filter((dirent) => dirent.isFile())
-                .map((dirent) => dirent.name);
+                .filter((dirent) => dirent.isFile() && !/^(index)/.test(dirent.name) && /\.(js|ts)$/.test(dirent.name))
+                .map((dirent) => dirent.name)
+                .reduce((acu: string[], cur: string) => {
+                    const index = acu.findIndex((name: string) => {
+                        const onlyName = cur.replace(/\.(ts|js)$/, '.');
+
+                        return name.includes(onlyName);
+                    });
+
+                    if (index === -1) acu.push(cur);
+                    else if (index !== -1) if (!/\.js$/.test(acu[index]) && /\.js$/.test(cur)) acu[index] = cur;
+
+                    return acu;
+                }, []);
 
             for (const modelName of modelNames) {
                 const modelPath = path.join(modelsPath, modelName);

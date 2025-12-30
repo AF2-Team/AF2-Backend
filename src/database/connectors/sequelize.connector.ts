@@ -46,8 +46,6 @@ export class SequelizeConnector extends BaseDatabaseConnector {
         await super.afterConnect();
 
         await this.processModels();
-
-        await this.sync(this.config.syncOptions);
     }
 
     async disconnect(): Promise<void> {
@@ -71,13 +69,5 @@ export class SequelizeConnector extends BaseDatabaseConnector {
         }
 
         return false;
-    }
-
-    async sync(options: IDatabaseConfig['syncOptions']): Promise<void> {
-        try {
-            await this.connector.sync(options);
-        } catch (error) {
-            //throw error;
-        }
     }
 }

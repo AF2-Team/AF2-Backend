@@ -66,7 +66,7 @@ export abstract class BaseDatabaseConnector implements IDatabaseConnector {
         if (!this.models.has(modelName))
             throw new Error(`Model '${modelName}' not registered in DB '${this.config.id}'`);
 
-        return this.models.get(modelName);
+        return this.models.get(modelName) as T;
     }
 
     hasModel(modelName: string): boolean {
@@ -123,7 +123,7 @@ export abstract class BaseDatabaseConnector implements IDatabaseConnector {
                 this.registerModel(modelInstance);
             }
         } catch (error: any) {
-            Logger.error(`Loading models of '${this.config.id}' database`, error);
+            throw error;
         }
     }
 

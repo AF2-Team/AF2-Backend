@@ -9,7 +9,6 @@ import { AppError, ValidationError, UnknownError, ProblematicResponseError } fro
  * Proporciona manejo automático de errores, query parsing y formato de respuesta
  */
 export abstract class ControllerBase {
-    protected service: any;
     protected controllerName: string;
 
     // Contexto de la solicitud actual
@@ -19,8 +18,7 @@ export abstract class ControllerBase {
     private queryFilters: ProcessedQueryFilters | undefined | null;
     private requestStartTime: number = 0;
 
-    constructor(service?: any) {
-        this.service = service;
+    constructor() {
         this.controllerName = this.constructor.name;
 
         // Crear proxy que envuelve automáticamente los métodos

@@ -34,3 +34,9 @@ export class DatabaseQueryError extends DatabaseError {
         super('Database query failed', 'query', { query, ...details });
     }
 }
+
+export class DatabaseRepositoryError extends DatabaseError {
+    constructor(description: string, details?: Record<string, unknown>) {
+        super(`Database repository ${description}`, 'app', { details });
+    }
+}

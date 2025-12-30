@@ -12,7 +12,6 @@ import { NotFoundError } from '@errors';
 import { ANSI } from '@utils/ansi.util.js';
 import { Logger } from '@utils/logger.js';
 import { Database } from '@database/index.js';
-import RepositoryManager from '@database/repositories/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -44,19 +43,16 @@ export class App {
     }
 
     async initialize(): Promise<Express> {
-        // 1. Conexión a las bases de datos
+        // 1. Conexión a las bases de datos y manejo de los datos
         await Database.initialize();
 
-        // 2. Manejo de datos
-        await RepositoryManager.initialize();
-
-        // 3. Middlewares básicos
+        // 2. Middlewares básicos
         this.setupMiddlewares();
 
-        // 4. Rutas de la API
+        // 3. Rutas de la API
         await this.setupRoutes();
 
-        // 5. Manejo de errores
+        // 4. Manejo de errores
         this.setupErrorHandling();
 
         Logger.natural(ANSI.success('[+] Application initialized successfully\n'));

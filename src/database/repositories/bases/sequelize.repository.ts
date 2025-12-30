@@ -2,19 +2,24 @@ import { Model, WhereOptions, FindOptions, CreationAttributes, ModelStatic, Iden
 import { BaseRepository } from '@bases/repository.base.js';
 import { DatabaseError } from '@errors/database.error.js';
 import { ModelWithAssociate, SequelizeModelBase } from '@database/models/bases/sequelize.model.js';
+import { ProcessedQueryFilters } from '@rules/api-query.type.js';
 
 export type SequelizeModelClass = typeof SequelizeModelBase & {
-    model?: ModelStatic<Model>;
+    instance?: ModelWithAssociate;
 };
 
-export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> extends BaseRepository<T, ID> {
+export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> extends BaseRepository<
+    T,
+    ID,
+    ModelWithAssociate
+> {
     protected override model: ModelWithAssociate;
 
     constructor(modelClass: SequelizeModelClass) {
-        if (!modelClass.model) throw new Error(`Model ${modelClass.name} has not been initialized`);
+        if (!modelClass.instance) throw new Error(`Model ${modelClass.name} has not been initialized`);
 
-        super(modelClass.model);
-        this.model = modelClass.model;
+        super(modelClass.instance);
+        this.model = modelClass.instance;
     }
 
     async create(data: Partial<T>): Promise<T> {
@@ -39,18 +44,19 @@ export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> ex
         });
     }
 
-    async find(filter: Partial<T> | Record<string, unknown>, options?: Partial<FindOptions>): Promise<T[]> {
+    async getAll(options: ProcessedQueryFilters, filter?: Partial<T> | Record<string, unknown>): Promise<T[]> {
         return this.executeWithLogging('find', async () => {
             try {
-                const where = this.buildWhereClause(filter);
+                const where = this.buildWhereClause(filter ?? {});
+                const _options = this.prepareOptions(options);
 
                 const findOpts: FindOptions = {
                     where,
-                    ...options,
+                    ..._options,
                     raw: true,
                 };
 
-                const results = await this.model.findAll(findOpts);
+                const results = await this.model.findAndCountAll(findOpts);
 
                 return results as unknown as T[];
             } catch (error: any) {
@@ -70,7 +76,16 @@ export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> ex
         });
     }
 
-    async findById(id: ID): Promise<T | null> {
+    async getAllActive(options: ProcessedQueryFilters, filter?: Partial<T> | Record<string, unknown>): Promise<T[]> {
+        const activeFilter = {
+            ...filter,
+            status: 1,
+        } as Record<string, unknown>;
+
+        return this.getAll(options, activeFilter);
+    }
+
+    async getById(id: ID): Promise<T | null> {
         return this.executeWithLogging('findById', async () => {
             try {
                 this.validateId(id);
@@ -92,7 +107,7 @@ export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> ex
         });
     }
 
-    async findOne(filter: Partial<T> | Record<string, unknown>): Promise<T | null> {
+    async getOne(filter: Partial<T> | Record<string, unknown>): Promise<T | null> {
         return this.executeWithLogging('findOne', async () => {
             try {
                 const where = this.buildWhereClause(filter);
@@ -129,7 +144,7 @@ export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> ex
 
                 if (affectedRows === 0) return null;
 
-                const updated = await this.findById(id);
+                const updated = await this.getById(id);
                 return updated;
             } catch (error: any) {
                 throw new DatabaseError(
@@ -177,7 +192,7 @@ export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> ex
     async count(filter: Partial<T> | Record<string, unknown>): Promise<number> {
         return this.executeWithLogging('count', async () => {
             try {
-                const where = this.buildWhereClause(filter);
+                const where = this.buildWhereClause(filter ?? {});
                 const count = await this.model.count({ where });
                 return count;
             } catch (error: any) {
@@ -197,49 +212,35 @@ export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> ex
     }
 
     private buildWhereClause(filter?: Partial<T> | Record<string, unknown>): WhereOptions | undefined {
-        if (!filter) return undefined;
+        if (!filter) return;
 
         const sanitized = this.sanitizeFilter(filter);
         const where: WhereOptions = {};
 
         for (const [key, value] of Object.entries(sanitized)) {
-            if (value === undefined || value === null) continue;
-
-            /*if (!key.startsWith('q.')) {
-                const field = key.substring(2);
-                where[field] = { [this.getSequelizeOperator(value)]: value };
-
+            if (key.startsWith('q.')) {
+                where[key.slice(2)] = value;
                 continue;
-            }*/
+            }
 
             where[key] = value as any;
         }
 
-        return Object.keys(where).length > 0 ? where : undefined;
-    }
-
-    private getSequelizeOperator(value: any): string {
-        if (typeof value === 'string' && value.includes('*')) return '$like';
-        if (typeof value === 'string') return '$eq';
-        if (typeof value === 'number') return '$eq';
-        return '$eq';
+        return Object.keys(where).length ? where : undefined;
     }
 
     private validateId(id: ID): void {
-        // Aquí necesitarías una validación más específica basada en el tipo real de ID
-        if (!id)
+        if (id === null || id === undefined)
             throw new DatabaseError(`Invalid ID: ${id}`, 'validateId', {
                 id,
                 model: this.model.name,
             });
 
-        // Validación adicional según el tipo
-        if (typeof id !== 'string' && typeof id !== 'number') {
+        if (typeof id !== 'string' && typeof id !== 'number')
             throw new DatabaseError(`ID must be string or number, got ${typeof id}: ${id}`, 'validateId', {
                 id,
                 model: this.model.name,
             });
-        }
     }
 
     getModel(): ModelStatic<Model> {

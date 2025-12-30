@@ -57,7 +57,7 @@ export class Logger {
 
         this.showLog('log', [
             this.formatMessage('info', `${message}`, { format: color, firm }),
-            ...(extension as Array<string>),
+            ...((extension ?? []) as Array<string>),
         ]);
     }
 
@@ -78,16 +78,14 @@ export class Logger {
 
         this.showLog('warn', [
             this.formatMessage('warn', `${message}`, { format: color, firm }),
-            ...(extension as Array<string>),
+            ...((extension ?? []) as Array<string>),
         ]);
     }
 
     static natural(message: string, extension?: ILoggerOptions['extension']): void {
-        extension = extension == undefined ? [] : extension;
-
         this.showPrefixedLog(
             'log',
-            [message, ...(extension as Array<string>)].filter((e) => e),
+            [message, ...((extension ?? []) as Array<string>)].filter((e) => e),
         );
     }
 }

@@ -1,3 +1,4 @@
+import { ProcessedQueryFilters } from '@rules/api-query.type.js';
 import { Logger } from '@utils/logger.js';
 
 type BaseQueryOptions = {
@@ -13,10 +14,10 @@ type DynamicQueryOptions = {
 
 export type QueryOptions = BaseQueryOptions & DynamicQueryOptions;
 
-export abstract class BaseRepository<T, ID extends any = string> {
-    protected model: unknown;
+export abstract class BaseRepository<T, ID extends any = string, M = unknown> {
+    protected model: M;
 
-    constructor(model: unknown) {
+    constructor(model: M) {
         this.model = model;
     }
 
@@ -31,7 +32,7 @@ export abstract class BaseRepository<T, ID extends any = string> {
             const result = await action();
             const duration = Date.now() - startTime;
 
-            Logger.info(`[${this.repositoryName}] ${operation} completed in ${duration}ms`);
+            //Logger.info(`[${this.repositoryName}] ${operation} completed in ${duration}ms`);
             return result;
         } catch (error: any) {
             throw error;
@@ -40,17 +41,19 @@ export abstract class BaseRepository<T, ID extends any = string> {
 
     abstract create(data: Partial<T>): Promise<T>;
 
-    abstract find(filter: Partial<T> | Record<string, unknown>, options?: unknown): Promise<T[]>;
+    abstract getAll(options: unknown, filter?: Partial<T> | Record<string, unknown>): Promise<T[]>;
 
-    abstract findById(id: ID): Promise<T | null>;
+    abstract getAllActive(options: unknown, filter?: Partial<T> | Record<string, unknown>): Promise<T[]>;
 
-    abstract findOne(filter: Partial<T> | Record<string, unknown>): Promise<T | null>;
+    abstract getById(id: ID): Promise<T | null>;
+
+    abstract getOne(filter: Partial<T> | Record<string, unknown>): Promise<T | null>;
 
     abstract update(id: ID, data: Partial<T>): Promise<T | null>;
 
     abstract delete(id: ID | ID[]): Promise<boolean>;
 
-    abstract count(filter: Partial<T> | Record<string, unknown>): Promise<number>;
+    abstract count(filter?: Partial<T> | Record<string, unknown>): Promise<number>;
 
     protected sanitizeFilter(filter: Partial<T> | Record<string, unknown>): Partial<T> | Record<string, unknown> {
         const sanitized: Record<string, unknown> = {};
@@ -60,5 +63,14 @@ export abstract class BaseRepository<T, ID extends any = string> {
         });
 
         return sanitized;
+    }
+
+    protected prepareOptions(options: ProcessedQueryFilters): Record<string, unknown> {
+        const { pagination, order } = options;
+        const _options: Record<string, unknown> = { ...pagination };
+
+        if (order && order.length) _options.order = order;
+
+        return _options;
     }
 }

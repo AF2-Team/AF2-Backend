@@ -1,24 +1,11 @@
 import { ControllerBase } from '@bases/controller.base.js';
-import { GreetingsService } from './_.service.js';
+import GreetingsService from './_.service.js';
+import { ProcessedQueryFilters } from '@rules/api-query.type.js';
 
 class GreetingsController extends ControllerBase {
-    constructor() {
-        super(GreetingsService);
-    }
-
     async getRandomGreeting(req: Express.Request, res: Express.Response) {
-        console.log('aaaaaaaaaaaaa');
-    }
-
-    async triggerError() {
-        throw new Error('This is a test error');
-    }
-
-    async triggerAppError() {
-        this.throwValidationError('This is a validation error for testing', { a: 21 });
+        return GreetingsService.test(req.filters as ProcessedQueryFilters);
     }
 }
 
-const _ = new GreetingsController();
-
-export { _ as GreetingsController };
+export default new GreetingsController();

@@ -3,6 +3,6 @@ import GreetingsController from './_.controller.js';
 
 const router = Router();
 
-router.get('/random', GreetingsController.getRandomGreeting);
+//router.get('/random', GreetingsController.func);
 
 export default router;

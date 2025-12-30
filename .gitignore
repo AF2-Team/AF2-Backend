@@ -20,6 +20,7 @@ mi_entorno
 /build
 **/*.log
 **/*.cache
+/dist
 
 # OS
 .DS_Store

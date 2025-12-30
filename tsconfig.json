@@ -1,0 +1,48 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "lib": ["ES2022"],
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "baseUrl": "./src",
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "allowSyntheticDefaultImports": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "types": ["node"],
+        "paths": {
+            "@config/*": ["config/*"],
+            "@config": ["config/index.ts"],
+            "@database/*": ["database/*"],
+            "@database": ["database/index.ts"],
+            "@db-connectors/*": ["database/connectors/*"],
+            "@migrations/*": ["database/migrations/*"],
+            "@models/*": ["database/models/*"],
+            "@repositories/*": ["database/repositories/*"],
+            "@modules/*": ["modules/*"],
+            "@bases/*": ["core/bases/*"],
+            "@rules/*": ["core/types/*"],
+            "@errors/*": ["shared/errors/*"],
+            "@errors": ["shared/errors/index.ts"],
+            "@middlewares/*": ["shared/middlewares/*"],
+            "@utils/*": ["shared/utils/*"],
+            "@providers/*": ["shared/providers/*"],
+            "@tests/*": ["tests/*"]
+        }
+    },
+    "include": ["src/**/*.ts", "src/**/*.d.ts"],
+    "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"],
+    "ts-node": {
+        "esm": true,
+        "experimentalSpecifierResolution": "node"
+    }
+}

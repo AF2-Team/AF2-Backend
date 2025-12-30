@@ -1,7 +1,7 @@
 import { App } from './app.js';
 import { AppConfig } from '@config/app.config.js';
+import { Database } from '@database/index.js';
 import { Logger } from '@utils/logger.js';
-//import DatabaseManager from '@database/index.js';
 
 async function bootstrap() {
     try {
@@ -30,7 +30,7 @@ function setupGracefulShutdown(app: any) {
             console.log(`\n${signal} received, starting graceful shutdown...`);
             console.log('[+] Application shutdown complete');
 
-            //if (['SIGTERM', 'SIGINT'].includes(signal)) await DatabaseManager.shutdown();
+            if (['SIGTERM', 'SIGINT'].includes(signal)) await Database.shutdown();
             process.exit(0);
         });
     });

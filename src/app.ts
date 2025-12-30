@@ -11,16 +11,18 @@ import { AppConfig, IAppConfig } from '@config/app.config.js';
 import { NotFoundError } from '@errors';
 import { ANSI } from '@utils/ansi.util.js';
 import { Logger } from '@utils/logger.js';
+import { Database } from '@database/index.js';
+import RepositoryManager from '@database/repositories/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export class App {
     private app: Express;
-    private config: IAppConfig;
+    private appConfig: IAppConfig;
 
     constructor(config: IAppConfig) {
         this.app = express();
-        this.config = config;
+        this.appConfig = config;
 
         Logger.natural(ANSI.success(`[+] Configuration loaded (${config.nodeEnv})`));
     }
@@ -29,7 +31,7 @@ export class App {
         const server = await this.initialize();
 
         return new Promise((resolve) => {
-            const httpServer = http.createServer(server).listen(this.config.port, this.config.host, () => {
+            const httpServer = http.createServer(server).listen(this.appConfig.port, this.appConfig.host, () => {
                 // Do
                 resolve();
             });
@@ -42,17 +44,23 @@ export class App {
     }
 
     async initialize(): Promise<Express> {
-        // 1. Middlewares básicos
+        // 1. Conexión a las bases de datos
+        await Database.initialize();
+
+        // 2. Manejo de datos
+        await RepositoryManager.initialize();
+
+        // 3. Middlewares básicos
         this.setupMiddlewares();
 
-        // 2. Rutas de la API
+        // 4. Rutas de la API
         await this.setupRoutes();
 
-        // 3. Manejo de errores
+        // 5. Manejo de errores
         this.setupErrorHandling();
 
         Logger.natural(ANSI.success('[+] Application initialized successfully\n'));
-        Logger.natural(ANSI.info(`Server running on ${ANSI.link(this.config.apiBaseUrl)}${ANSI.getCode('reset')}`));
+        Logger.natural(ANSI.info(`Server running on ${ANSI.link(this.appConfig.apiBaseUrl)}${ANSI.getCode('reset')}`));
         Logger.natural(ANSI.info('Waiting for requests...\n'));
 
         return this.app;
@@ -66,10 +74,10 @@ export class App {
         this.app.disable('x-powered-by');
 
         // 3. CORS
-        if (this.config.enableCors) this.app.use(cors(this.config.corsOptions));
+        if (this.appConfig.enableCors) this.app.use(cors(this.appConfig.corsOptions));
 
         // 4. Seguridad avanzada con Helmet
-        if (this.config.enableHelmet) {
+        if (this.appConfig.enableHelmet) {
             this.app.use(
                 helmet({
                     contentSecurityPolicy: AppConfig.isProduction(),
@@ -80,7 +88,7 @@ export class App {
         }
 
         // 5. Logging de requests
-        if (this.config.enableMorgan) {
+        if (this.appConfig.enableMorgan) {
             const format = AppConfig.isDevelopment() ? 'dev' : 'combined';
             this.app.use(morgan(format));
         }
@@ -117,7 +125,7 @@ export class App {
     }
 
     private async setupRoutes(): Promise<void> {
-        Logger.natural('------ [ Setting up routes ] ------');
+        Logger.natural('--------- [ Setting up routes ] ---------');
         const router = express.Router();
         const apiPrefix = `/api/v1`;
 
@@ -127,7 +135,7 @@ export class App {
                 status: 'healthy',
                 uptime: process.uptime(),
                 memory: process.memoryUsage(),
-                environment: this.config.nodeEnv,
+                environment: this.appConfig.nodeEnv,
             };
 
             res.json(health);
@@ -146,7 +154,7 @@ export class App {
                 endpoints: {
                     ready: '/ready',
                     health: '/./health',
-                    api: `${this.config.apiBaseUrl}/[module]`,
+                    api: `${this.appConfig.apiBaseUrl}/[module]`,
                 },
             };
 
@@ -179,7 +187,7 @@ export class App {
 
         Logger.natural('');
         Logger.natural(ANSI.success(`[+] All routes loaded`));
-        Logger.natural(''.padEnd(35, '-'));
+        Logger.natural(''.padEnd(41, '-'));
     }
 
     private async loadModule(
@@ -207,7 +215,7 @@ export class App {
             router.use(`/${moduleName}`, moduleRouter);
 
             Logger.natural(
-                `[+] Loaded: ${ANSI.link(`${this.config.apiBaseUrl}${apiPrefix}/${moduleName}`)}${ANSI.getCode(
+                `Loaded: ${ANSI.link(`${this.appConfig.apiBaseUrl}${apiPrefix}/${moduleName}`)}${ANSI.getCode(
                     'reset',
                 )}`,
             );

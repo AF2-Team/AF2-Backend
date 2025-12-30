@@ -2,29 +2,33 @@ import { IDatabaseConfig, IDatabaseHealth } from '@rules/database.type.js';
 import { BaseDatabaseConnector } from '@bases/db-connector.base.js';
 import { DatabaseConfig } from '@config/database.config.js';
 import { SequelizeConnector } from '@database/connectors/sequelize.connector.js';
+import { Logger } from '@utils/logger.js';
 
-export class DatabaseManager {
-    private static instance: DatabaseManager;
+class DatabaseManager {
     private connectors: Map<string, BaseDatabaseConnector> = new Map();
 
-    private constructor() {}
-
-    static getInstance(): DatabaseManager {
-        if (!DatabaseManager.instance) DatabaseManager.instance = new DatabaseManager();
-
-        return DatabaseManager.instance;
-    }
+    constructor() {}
 
     async initialize(): Promise<void> {
-        for (const config of DatabaseConfig.loadAll()) {
-            if (!config.enabled) continue;
+        Logger.natural('------ [ Connecting to Databases ] ------');
+        const promises: Promise<null>[] = [];
+
+        DatabaseConfig.loadAll().map((config) => {
+            if (!config.enabled) return;
 
             const connector = this.createConnector(config);
-            await connector.connect();
-            await connector.authenticate();
+            promises.push(
+                new Promise(async (resolve) => {
+                    await connector.connect();
 
-            this.connectors.set(config.name, connector);
-        }
+                    this.connectors.set(config.id, connector);
+                    resolve(null);
+                }),
+            );
+        });
+
+        await Promise.all(promises);
+        Logger.natural(''.padEnd(41, '-'));
     }
 
     private createConnector(config: IDatabaseConfig): BaseDatabaseConnector {
@@ -46,20 +50,7 @@ export class DatabaseManager {
     getDefaultConnector(): BaseDatabaseConnector {
         const defaultConfig = DatabaseConfig.loadDefault();
         if (!defaultConfig) throw new Error('No default database configured');
-        return this.getConnector(defaultConfig.name);
-    }
-
-    async shutdown(name?: string): Promise<void> {
-        if (name) {
-            if (this.connectors.has(name)) return;
-
-            this.connectors.get(name)?.disconnect();
-
-            return;
-        }
-
-        for (const connector of this.connectors.values()) await connector.disconnect();
-        this.connectors.clear();
+        return this.getConnector(defaultConfig.id);
     }
 
     getHealth(): IDatabaseHealth {
@@ -76,3 +67,5 @@ export class DatabaseManager {
         return health;
     }
 }
+
+export const Database = new DatabaseManager();

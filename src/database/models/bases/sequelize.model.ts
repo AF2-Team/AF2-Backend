@@ -11,11 +11,12 @@ import {
 } from 'sequelize';
 import { BaseModel } from '@bases/model.base.js';
 
-type ModelWithAssociate = ModelStatic<Model> & {
+export type ModelWithAssociate = ModelStatic<Model> & {
+    dbInstanceName?: unknown;
     associate?: (models: Record<string, ModelStatic<Model>>) => void;
 };
 
-type ModelWithAssociations = ModelStatic<Model> & {
+export type ModelWithAssociations = ModelStatic<Model> & {
     hasOne: (target: ModelStatic<Model>, options?: any) => HasOne;
     hasMany: (target: ModelStatic<Model>, options?: any) => HasMany;
     belongsTo: (target: ModelStatic<Model>, options?: any) => BelongsTo;
@@ -23,6 +24,8 @@ type ModelWithAssociations = ModelStatic<Model> & {
 };
 
 export abstract class SequelizeModelBase extends BaseModel {
+    static instance?: ModelWithAssociate;
+
     static config(): Partial<InitOptions> {
         return {};
     }
@@ -31,24 +34,27 @@ export abstract class SequelizeModelBase extends BaseModel {
         type: 'hasOne' | 'hasMany' | 'belongsTo' | 'belongsToMany';
         target: string;
         options?: any;
+        inversed?: boolean; // Mantener compatibilidad con ejemplo anterior
     }> {
         return [];
     }
 
-    static override init(dbInstance: Sequelize): ModelStatic<Model> {
-        const model = dbInstance.define(
+    static override init(dbInstance: Sequelize, dbInstanceName: string): ModelStatic<Model> {
+        this.instance = dbInstance.define(
             this.modelName,
             this.definition() as ModelAttributes,
             this.config(),
         ) as ModelWithAssociate;
 
         if (this.relations().length > 0) {
-            model.associate = (models: Record<string, ModelStatic<Model>>) => {
+            this.instance.associate = (models: Record<string, ModelStatic<Model>>) => {
                 this.associate(models);
             };
         }
 
-        return model;
+        this.instance.dbInstanceName = dbInstanceName;
+
+        return this.instance;
     }
 
     static associate(models: Record<string, ModelStatic<Model>>): void {
@@ -59,9 +65,8 @@ export abstract class SequelizeModelBase extends BaseModel {
         this.relations().forEach((relation) => {
             const target = models[relation.target];
 
-            if (!target) {
+            if (!target)
                 throw new Error(`Target model ${relation.target} not found for relation from ${this.modelName}`);
-            }
 
             switch (relation.type) {
                 case 'hasOne':

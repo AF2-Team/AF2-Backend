@@ -3,7 +3,7 @@ export type IDatabaseType = 'postgresql' | 'mysql' | 'mongodb';
 
 export interface IDatabaseConfig {
     type: IDatabaseType;
-    name: string; // Identificador único: 'main', 'analytics', 'cache'
+    id: string; // Identificador único: 'main', 'analytics', 'cache'
     host?: string;
     port?: number;
     database?: string;
@@ -25,7 +25,6 @@ export interface IDatabaseConfig {
     };
     enabled: boolean;
     isDefault: boolean;
-    folderName: string;
 }
 
 export interface IDatabaseInstance {

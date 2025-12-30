@@ -1,13 +1,20 @@
 import { Model, WhereOptions, FindOptions, CreationAttributes, ModelStatic, Identifier } from 'sequelize';
 import { BaseRepository } from '@bases/repository.base.js';
 import { DatabaseError } from '@errors/database.error.js';
+import { ModelWithAssociate, SequelizeModelBase } from '@database/models/bases/sequelize.model.js';
+
+export type SequelizeModelClass = typeof SequelizeModelBase & {
+    model?: ModelStatic<Model>;
+};
 
 export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> extends BaseRepository<T, ID> {
-    private model: ModelStatic<Model>;
+    protected override model: ModelWithAssociate;
 
-    constructor(model: ModelStatic<Model>, databaseName: string = 'default') {
-        super(model.name, databaseName);
-        this.model = model;
+    constructor(modelClass: SequelizeModelClass) {
+        if (!modelClass.model) throw new Error(`Model ${modelClass.name} has not been initialized`);
+
+        super(modelClass.model);
+        this.model = modelClass.model;
     }
 
     async create(data: Partial<T>): Promise<T> {
@@ -22,7 +29,7 @@ export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> ex
                     'create',
                     {
                         data,
-                        database: this.databaseName,
+                        database: this.model.dbInstanceName,
                         model: this.model.name,
                         error: error.message,
                     },
@@ -53,7 +60,7 @@ export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> ex
                     {
                         filter,
                         options,
-                        database: this.databaseName,
+                        database: this.model.dbInstanceName,
                         model: this.model.name,
                         error: error.message,
                     },
@@ -75,7 +82,7 @@ export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> ex
                     'findById',
                     {
                         id,
-                        database: this.databaseName,
+                        database: this.model.dbInstanceName,
                         model: this.model.name,
                         error: error.message,
                     },
@@ -100,7 +107,7 @@ export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> ex
                     'findOne',
                     {
                         filter,
-                        database: this.databaseName,
+                        database: this.model.dbInstanceName,
                         model: this.model.name,
                         error: error.message,
                     },
@@ -131,7 +138,7 @@ export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> ex
                     {
                         id,
                         data,
-                        database: this.databaseName,
+                        database: this.model.dbInstanceName,
                         model: this.model.name,
                         error: error.message,
                     },
@@ -157,7 +164,7 @@ export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> ex
                     'delete',
                     {
                         id,
-                        database: this.databaseName,
+                        database: this.model.dbInstanceName,
                         model: this.model.name,
                         error: error.message,
                     },
@@ -179,7 +186,7 @@ export class SequelizeRepositoryBase<T = any, ID extends Identifier = string> ex
                     'count',
                     {
                         filter,
-                        database: this.databaseName,
+                        database: this.model.dbInstanceName,
                         model: this.model.name,
                         error: error.message,
                     },

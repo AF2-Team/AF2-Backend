@@ -6,11 +6,11 @@ import { dirname, resolve } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-dotenv.config({ path: resolve(__dirname, '..', '..', '.env') });
+dotenv.config({ path: resolve(__dirname, '..', '..', '.env'), quiet: true });
 
 type EnvGroup = {
     type: IDatabaseType;
-    name: string;
+    id: string;
     values: Record<string, string>;
 };
 
@@ -18,7 +18,6 @@ export class DatabaseConfig {
     private static _configCache: IDatabaseConfig[] | null = null;
     private static _defaultConfig: IDatabaseConfig | null = null;
     private static _enabledDatabases: string[] = [];
-    private static _nodeEnv: string = process.env.NODE_ENV ?? 'development';
 
     /**
      * Carga todas las configuraciones de base de datos desde las variables de entorno
@@ -54,7 +53,7 @@ export class DatabaseConfig {
      */
     static load(name: string): IDatabaseConfig | null {
         const allConfigs = this.loadAll();
-        return allConfigs.find((config) => config.name === name) || null;
+        return allConfigs.find((config) => config.id === name) || null;
     }
 
     /**
@@ -100,22 +99,22 @@ export class DatabaseConfig {
         for (const [key, value] of Object.entries(process.env)) {
             if (!value) continue;
 
-            const match = key.match(/^DB_(?<type>[A-Z]+)(?:_(?<name>[A-Z]+))?_(?<prop>.+)$/);
+            const match = key.match(/^DB_(?<type>[A-Z]+)(?:_(?<id>[A-Z]+))?_(?<prop>.+)$/);
             if (!match) continue;
 
-            const { type, name, prop } = match.groups!;
+            const { type, id, prop } = match.groups!;
 
             if (!type || !prop || !prop) continue;
 
             const _type = type.toLowerCase() as IDatabaseType;
 
-            const _name = name ? name.toLowerCase() : _type;
-            const groupKey = `${_type}:${_name}`;
+            const _id = id ? id.toLowerCase() : _type;
+            const groupKey = `${_type}:${_id}`;
 
             if (!groups.has(groupKey)) {
                 groups.set(groupKey, {
                     type: _type,
-                    name: _name,
+                    id: _id,
                     values: {},
                 });
             }
@@ -139,20 +138,18 @@ export class DatabaseConfig {
 
         return {
             type: group.type,
-            name: group.name,
+            id: group.id,
             enabled,
-            isDefault: group.name === defaultDatabase || (defaultDatabase === '' && group.type === group.name),
+            isDefault: group.id === defaultDatabase || (defaultDatabase === '' && group.type === group.id),
             host: group.values.host,
             port: group.values.port ? Number(group.values.port) : undefined,
-            database: group.values.name,
+            database: group.values.database,
             username: group.values.username,
             password: group.values.password,
             uri: group.values.uri,
-
             dialect: group.values.dialect as any,
             timezone: group.values.timezone,
             logging: group.values.logging === 'true',
-
             pool: group.values.pool_max
                 ? {
                       max: Number(group.values.pool_max),
@@ -161,7 +158,6 @@ export class DatabaseConfig {
                       idle: Number(group.values.pool_idle ?? 10000),
                   }
                 : undefined,
-
             syncOptions: {
                 force: group.values.sync_force === 'true',
                 alter: group.values.sync_alter === 'true',

@@ -29,7 +29,7 @@ export class Logger {
 
     private static showLog(type: ErrorTypes, ...content: any[]) {
         const uniqueSep = '[_!_]';
-        let _content: string | string[] = this.prefix + content.flat().join(uniqueSep + `\n${this.prefix}` + uniqueSep);
+        let _content: string | string[] = content.flat().join(uniqueSep + `\n${this.prefix}` + uniqueSep);
         _content = _content.split(uniqueSep);
 
         console[type as ErrorTypes](..._content);
@@ -43,8 +43,17 @@ export class Logger {
         console[type as ErrorTypes](..._content);
     }
 
+    static logDefinition(message: string, type: any): void {
+        if (typeof message !== 'string' || (typeof message === 'string' && message.trim() == '')) return;
+
+        const color = ANSI.getCode('cyan');
+        const formatted = Logger.formatMessage('log', `(${type}) -> ${message}`, { format: color });
+
+        Logger.showLog('info', [formatted]);
+    }
+
     static info(message: string, { extension, firm }: ILoggerOptions = {}): void {
-        const color = ANSI.getCode('magenta');
+        const color = ANSI.getCode('cyan');
 
         this.showLog('log', [
             this.formatMessage('info', `${message}`, { format: color, firm }),

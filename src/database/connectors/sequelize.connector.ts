@@ -1,6 +1,7 @@
 import { Sequelize } from 'sequelize';
 import { BaseDatabaseConnector } from '@bases/db-connector.base.js';
 import { IDatabaseConfig } from '@rules/database.type.js';
+import { Logger } from '@utils/logger.js';
 
 export class SequelizeConnector extends BaseDatabaseConnector {
     protected declare connector: Sequelize;
@@ -11,38 +12,42 @@ export class SequelizeConnector extends BaseDatabaseConnector {
 
     async connect(): Promise<boolean> {
         try {
+            // Ejecutar instrucciones pre-conexión
+            await this.beforeConnect();
+
             this.connector = new Sequelize(this.config.database!, this.config.username!, this.config.password!, {
                 host: this.config.host,
                 port: this.config.port,
                 dialect: this.config.dialect as any,
                 timezone: this.config.timezone,
-                logging: this.config.logging,
+                logging: this.config.logging ? (message: string) => Logger.logDefinition(message, 'SQL') : console.log,
                 pool: this.config.pool,
+                define: {
+                    underscored: true, // Usar snake_case en la BD
+                    freezeTableName: true,
+                    timestamps: false,
+                },
             });
-
-            // Ejecutar instrucciones pre-conexión
-            await this.beforeConnect();
-
-            // Probar conexión
-            await this.ping();
-            this.setStatus(true);
 
             // Ejecutar instrucciones post-conexión
             await this.afterConnect();
 
+            this.setStatus(true);
+
             return true;
-        } catch (error: any) {}
+        } catch (error) {
+            //throw error;
+        }
 
         return false;
     }
 
     async afterConnect(): Promise<void> {
-        /*for (const [name, modelFactory] of Object.entries(modelsToSetup)) {
-            const model = modelFactory(this.sequelize);
-            this.registerModel(name, model);
-        }
+        await super.afterConnect();
 
-        await this.sync(this.config.syncOptions);*/
+        await this.processModels();
+
+        await this.sync(this.config.syncOptions);
     }
 
     async disconnect(): Promise<void> {
@@ -61,8 +66,18 @@ export class SequelizeConnector extends BaseDatabaseConnector {
             await this.connector.authenticate();
 
             return true;
-        } catch {
-            return false;
+        } catch (error) {
+            //throw error;
+        }
+
+        return false;
+    }
+
+    async sync(options: IDatabaseConfig['syncOptions']): Promise<void> {
+        try {
+            await this.connector.sync(options);
+        } catch (error) {
+            //throw error;
         }
     }
 }

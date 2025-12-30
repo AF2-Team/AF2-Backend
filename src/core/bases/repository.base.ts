@@ -14,18 +14,18 @@ type DynamicQueryOptions = {
 export type QueryOptions = BaseQueryOptions & DynamicQueryOptions;
 
 export abstract class BaseRepository<T, ID extends any = string> {
-    protected readonly repositoryName: string;
-    protected readonly databaseName: string;
+    protected model: unknown;
 
-    constructor(repositoryName: string, databaseName: string = 'default') {
-        this.repositoryName = repositoryName;
-        this.databaseName = databaseName;
+    constructor(model: unknown) {
+        this.model = model;
+    }
+
+    protected get repositoryName(): string {
+        return this.constructor.name;
     }
 
     protected async executeWithLogging<R>(operation: string, action: () => Promise<R>): Promise<R> {
         const startTime = Date.now();
-        const firm = crypto.randomUUID();
-        Logger.info(`[${this.repositoryName}] Starting ${operation}...`);
 
         try {
             const result = await action();
@@ -34,8 +34,6 @@ export abstract class BaseRepository<T, ID extends any = string> {
             Logger.info(`[${this.repositoryName}] ${operation} completed in ${duration}ms`);
             return result;
         } catch (error: any) {
-            Logger.error(`Error in ${operation}:`, error);
-
             throw error;
         }
     }

@@ -27,33 +27,10 @@ export interface IDatabaseConfig {
     isDefault: boolean;
 }
 
-export interface IDatabaseInstance {
-    name: string;
-    type: IDatabaseType;
-    connector: any; // BaseDatabaseConnector
-    config: IDatabaseConfig;
-    isConnected: boolean;
-    models: Map<string, any>;
-}
-
 export interface IDatabaseHealth {
     [databaseName: string]: {
         connected: boolean;
         type: string;
         lastPing: Date;
     };
-}
-
-// Tipos para operaciones multi-database
-export interface ICrossDatabaseOperation<T = any> {
-    database: string;
-    success: boolean;
-    data?: T;
-    error?: string;
-    duration?: number;
-}
-
-export interface IModelContract {
-    modelName: string;
-    init(dbInstance: unknown): unknown;
 }

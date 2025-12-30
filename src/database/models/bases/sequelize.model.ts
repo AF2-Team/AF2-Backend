@@ -34,7 +34,7 @@ export abstract class SequelizeModelBase extends BaseModel {
         type: 'hasOne' | 'hasMany' | 'belongsTo' | 'belongsToMany';
         target: string;
         options?: any;
-        inversed?: boolean; // Mantener compatibilidad con ejemplo anterior
+        inversed?: boolean;
     }> {
         return [];
     }

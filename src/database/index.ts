@@ -9,13 +9,14 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { BaseRepository } from '@bases/repository.base.js';
 import { DatabaseRepositoryError } from '@errors/database.error.js';
+import { ANSI } from '@utils/ansi.util.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 class DatabaseManager {
     private connectors: Map<string, BaseDatabaseConnector> = new Map();
     private repositories: Map<string, any> = new Map();
-  
+
     constructor() {}
 
     async initialize(): Promise<void> {
@@ -24,30 +25,25 @@ class DatabaseManager {
     }
 
     async initializeModels(): Promise<void> {
-        Logger.natural('------ [ Connecting to Databases ] ------');
-        const promises: Promise<null>[] = [];
+        // Mapeamos las configuraciones directamente a promesas
+        const promises = DatabaseConfig.loadAll()
+            .filter((config) => config.enabled) // Solo los habilitados
+            .map(async (config) => {
+                Logger.natural(`Trying to connect to '${config.id}' database as '${config.type}' type...`);
+                const connector = this.createConnector(config);
 
-        DatabaseConfig.loadAll().map((config) => {
-            if (!config.enabled) return;
+                // Si esto falla, la promesa lanzará el error y Promise.all lo capturará
+                await connector.connect();
 
-            const connector = this.createConnector(config);
-            promises.push(
-                new Promise(async (resolve) => {
-                    await connector.connect();
+                this.connectors.set(config.id, connector);
+                return null;
+            });
 
-                    this.connectors.set(config.id, connector);
-                    resolve(null);
-                }),
-            );
-        });
-
-        await Promise.all(promises);
-        Logger.natural(''.padEnd(41, '-'));
+        if (promises.length > 0) await Promise.all(promises);
+        else Logger.natural(ANSI.info(`Enabled databases connectors was not found`));
     }
 
     async initializeRepositories() {
-        Logger.natural('------ [ Setting up Repositories ] ------');
-
         const dbConfig = DatabaseConfig.loadAll().filter((conf) => conf.enabled);
         const modelsPath = path.join(__dirname, 'repositories');
 
@@ -90,9 +86,14 @@ class DatabaseManager {
 
                 this.repositories.set(`${config.id}.${repoRawName}`, repoDefinition);
             }
+
+            if (repoNames.length > 0)
+                Logger.natural(
+                    ANSI.success(`[+] Repositories for '${config.id}' database as '${config.type}' type loaded`),
+                );
         }
 
-        Logger.natural(''.padEnd(41, '-'));
+        if (dbConfig.length === 0) Logger.natural(ANSI.info(`Enabled databases connectors was not found`));
     }
 
     private createConnector(config: IDatabaseConfig): BaseDatabaseConnector {
@@ -100,8 +101,8 @@ class DatabaseManager {
             case 'postgresql':
             case 'mysql':
                 return new SequelizeConnector(config);
-            case 'mongodb': // <--- AGREGAR ESTO
-                return new MongooseConnector(config);    
+            case 'mongodb':
+                return new MongooseConnector(config);
             default:
                 throw new Error(`Unsupported database type: ${config.type}`);
         }

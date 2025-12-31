@@ -23,7 +23,7 @@ export class App {
         this.app = express();
         this.appConfig = config;
 
-        Logger.natural(ANSI.success(`[+] Configuration loaded (${config.nodeEnv})`));
+        Logger.natural(ANSI.success(`[+] Configuration loaded (${config.nodeEnv})`), { sepEnd: true });
     }
 
     async start(): Promise<void> {
@@ -44,7 +44,7 @@ export class App {
 
     async initialize(): Promise<Express> {
         // 1. Conexión a las bases de datos y manejo de los datos
-        await Database.initialize();
+        await this.setupDatabase();
 
         // 2. Middlewares básicos
         this.setupMiddlewares();
@@ -55,7 +55,7 @@ export class App {
         // 4. Manejo de errores
         this.setupErrorHandling();
 
-        Logger.natural(ANSI.success('[+] Application initialized successfully\n'));
+        Logger.natural(ANSI.success('[+] Application initialized successfully'), { sepStart: true, sepEnd: true });
         Logger.natural(ANSI.info(`Server running on ${ANSI.link(this.appConfig.apiBaseUrl)}${ANSI.getCode('reset')}`));
         Logger.natural(ANSI.info('Waiting for requests...\n'));
 
@@ -63,6 +63,8 @@ export class App {
     }
 
     private setupMiddlewares(): void {
+        Logger.natural(ANSI.info('-------- [ Setting up Middlewares ] --------'));
+
         // 1. Favicon handler (evita 404 innecesarios)
         this.app.get('/favicon.ico', (req, res) => res.status(204).end());
 
@@ -70,7 +72,10 @@ export class App {
         this.app.disable('x-powered-by');
 
         // 3. CORS
-        if (this.appConfig.enableCors) this.app.use(cors(this.appConfig.corsOptions));
+        if (this.appConfig.enableCors) {
+            this.app.use(cors(this.appConfig.corsOptions));
+            Logger.natural(ANSI.success('[+] CORS middleware loaded'));
+        }
 
         // 4. Seguridad avanzada con Helmet
         if (this.appConfig.enableHelmet) {
@@ -81,12 +86,14 @@ export class App {
                     hsts: AppConfig.isProduction(),
                 }),
             );
+            Logger.natural(ANSI.success('[+] Helmet middleware loaded'));
         }
 
         // 5. Logging de requests
         if (this.appConfig.enableMorgan) {
             const format = AppConfig.isDevelopment() ? 'dev' : 'combined';
             this.app.use(morgan(format));
+            Logger.natural(ANSI.success('[+] Morgan middleware loaded'));
         }
 
         // 6. Body parsing
@@ -98,6 +105,7 @@ export class App {
                 },
             }),
         );
+        Logger.natural(ANSI.success('[+] Body Parsing middleware loaded'));
 
         // 7. URL encoded parsing (para formularios)
         this.app.use(
@@ -106,9 +114,11 @@ export class App {
                 limit: '10mb',
             }),
         );
+        Logger.natural(ANSI.success('[+] URL Encoding Parsing middleware loaded'));
 
         // 8. Cookie parsing
         this.app.use(cookieParser());
+        Logger.natural(ANSI.success('[+] Cookie Parsing middleware loaded'));
 
         // 9. Static files
         this.app.use(
@@ -116,12 +126,13 @@ export class App {
                 maxAge: AppConfig.isProduction() ? '1d' : 0,
             }),
         );
+        Logger.natural(ANSI.success('[+] Static Files middleware loaded'));
 
-        Logger.natural(ANSI.success('[+] Middlewares loaded'));
+        Logger.natural(ANSI.info(''.padEnd(44, '-')), { sepEnd: true });
     }
 
     private async setupRoutes(): Promise<void> {
-        Logger.natural('--------- [ Setting up routes ] ---------');
+        Logger.natural(ANSI.info('----------- [ Setting up Routes ] ----------'));
         const router = express.Router();
         const apiPrefix = `/api/v1`;
 
@@ -181,9 +192,8 @@ export class App {
 
         this.app.use(apiPrefix, router);
 
-        Logger.natural('');
         Logger.natural(ANSI.success(`[+] All routes loaded`));
-        Logger.natural(''.padEnd(41, '-'));
+        Logger.natural(ANSI.info(''.padEnd(44, '-')));
     }
 
     private async loadModule(
@@ -243,7 +253,18 @@ export class App {
         });
     }
 
-    private setupDatabase(): void {}
+    private async setupDatabase(): Promise<void> {
+        Logger.natural(ANSI.info('--------- [ Setting up Databases ] ---------'));
+
+        await Database.initializeModels();
+
+        Logger.natural(ANSI.info(''.padEnd(44, '-')), { sepEnd: true });
+        Logger.natural(ANSI.info('------- [ Setting up Repositories ] --------'));
+
+        await Database.initializeRepositories();
+
+        Logger.natural(ANSI.info(''.padEnd(44, '-')), { sepEnd: true });
+    }
 
     getExpressApp(): Express {
         return this.app;

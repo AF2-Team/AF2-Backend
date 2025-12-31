@@ -54,7 +54,7 @@ export abstract class BaseDatabaseConnector implements IDatabaseConnector {
         try {
             await this.ping();
 
-            Logger.natural(ANSI.success(`[+] Database '${this.config.id}' connected`));
+            Logger.natural(ANSI.success(`[+] Database '${this.config.id}' as '${this.config.type}' type connected`));
 
             return true;
         } catch {}

@@ -19,7 +19,7 @@ Backend del proyecto AF2
    npm install
    ```
 4. Configura las variables de entorno:
-   - Renombra o edita el archivo `MONGO_URI.env` con tu cadena de conexión de MongoDB y el puerto deseado.
+   - Configura el archivo `.env` siguiendo el ejemplo proporcionado.
 
 ## Uso
 1. Inicia el servidor:

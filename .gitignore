@@ -1,3 +1,39 @@
-tests/
-MONGO_URI.env
-node_modules/ 
+# Node assets objects
+**/node_modules/
+*.rar
+*.zip
+yarn.lock
+package-lock.json
+
+# Python assets objects
+**/env/
+**/venv/
+**/__pycache__/
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+mi_entorno
+**/.svelte-kit
+/build
+**/*.log
+**/*.cache
+/dist
+
+# OS
+.DS_Store
+Thumbs.db*
+**/~$*
+
+# Dot Env files
+.env
+.env.*
+!.env.*.example
+!.env.example
+!.env.test
+!.env.template
+
+# Vite
+vite.config.[jt]s.timestamp-*

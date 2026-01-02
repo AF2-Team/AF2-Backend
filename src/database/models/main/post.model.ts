@@ -25,6 +25,9 @@ export default class PostModel extends MongooseModelBase {
             originalPost: {
                 type: Schema.Types.ObjectId,
                 ref: 'Post',
+                required: function (this: any) {
+                    return this.type === 'repost';
+                },
             },
 
             text: {
@@ -37,9 +40,15 @@ export default class PostModel extends MongooseModelBase {
                 default: 'regular',
             },
 
-            tags: [{ type: String }],
+            tags: [{ 
+                type: String,
+                trim: true,
+            }],
 
-            status: { type: Number, default: 1 },
+            status: { 
+                type: Number, 
+                default: 1 
+            },
 
             publishStatus: {
                 type: String,
@@ -47,10 +56,22 @@ export default class PostModel extends MongooseModelBase {
                 default: 'published',
             },
 
-            likesCount: { type: Number, default: 0 },
-            commentsCount: { type: Number, default: 0 },
-            repostsCount: { type: Number, default: 0 },
-            favoritesCount: { type: Number, default: 0 },
+            likesCount: { 
+                type: Number, 
+                default: 0 
+            },
+            commentsCount: { 
+                type: Number, 
+                default: 0 
+            },
+            repostsCount: { 
+                type: Number, 
+                default: 0 
+            },
+            favoritesCount: { 
+                type: Number, 
+                default: 0 
+            },
         };
     }
 
@@ -61,5 +82,16 @@ export default class PostModel extends MongooseModelBase {
         schema.index({ type: 1 });
         schema.index({ status: 1 });
         schema.index({ originalPost: 1 });
+    }
+
+    static override applyHooks(schema: Schema): void {
+        schema.pre('validate', function (next) {
+            if (this.type === 'repost' && this.originalPost) {
+                if (this._id && this.originalPost.equals(this._id)) {
+                    console.warn('User is reposting their own post');
+                }
+            }
+            next();
+        });
     }
 }

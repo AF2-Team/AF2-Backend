@@ -16,7 +16,7 @@ export default class UserModel extends MongooseModelBase {
                 trim: true,
             },
             age: { type: Number, default: 18 },
-            status: { type: Number, default: 1 }, // activo / soft delete
+            status: { type: Number, default: 1 },
         };
     }
 
@@ -25,7 +25,5 @@ export default class UserModel extends MongooseModelBase {
         schema.index({ status: 1 });
     }
 
-    static override applyHooks(_schema: Schema): void {
-        // Hooks futuros (password, audit, etc.)
-    }
+    static override applyHooks(_schema: Schema): void {}
 }

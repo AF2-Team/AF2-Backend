@@ -1,20 +1,24 @@
-import FollowModel from '@database/models/main/follow.model.js';
+import { Model, Types } from 'mongoose';
 import { MongooseRepositoryBase } from '@database/repositories/bases/mongoose.repository.js';
 import { DatabaseError } from '@errors/database.error.js';
 import { ProcessedQueryFilters } from '@rules/api-query.type.js';
-import mongoose from 'mongoose';
+import FollowModel from '@database/models/main/follow.model.js';
 
 class FollowRepository extends MongooseRepositoryBase<any> {
     constructor() {
         super(FollowModel);
     }
 
-    async exists(filter: { followerId: string; targetId: string; targetType: 'user' | 'tag' }): Promise<boolean> {
+    async exists(filter: { 
+        followerId: string; 
+        targetId: string; 
+        targetType: 'user' | 'tag' 
+    }): Promise<boolean> {
         return this.executeWithLogging('exists', async () => {
             try {
-                const result = await this.model.exists({
-                    follower: filter.followerId,
-                    target: filter.targetId,
+                const result = await (this.model as Model<any>).exists({
+                    follower: new Types.ObjectId(filter.followerId),
+                    targetId: new Types.ObjectId(filter.targetId),
                     targetType: filter.targetType,
                     status: 1,
                 });
@@ -22,7 +26,7 @@ class FollowRepository extends MongooseRepositoryBase<any> {
                 return !!result;
             } catch (error: any) {
                 throw new DatabaseError(
-                    'Mongoose exists failed',
+                    'Failed to check follow existence',
                     'exists',
                     { filter, error: error.message },
                     { cause: error },
@@ -31,11 +35,15 @@ class FollowRepository extends MongooseRepositoryBase<any> {
         });
     }
 
-    async deleteFollow(filter: { followerId: string; targetId: string; targetType: 'user' | 'tag' }): Promise<boolean> {
+    async deleteFollow(filter: { 
+        followerId: string; 
+        targetId: string; 
+        targetType: 'user' | 'tag' 
+    }): Promise<boolean> {
         const deletedCount = await this.remove(
             {
-                follower: filter.followerId,
-                target: filter.targetId,
+                follower: new Types.ObjectId(filter.followerId),
+                targetId: new Types.ObjectId(filter.targetId),
                 targetType: filter.targetType,
             },
             { single: true },
@@ -44,13 +52,37 @@ class FollowRepository extends MongooseRepositoryBase<any> {
         return deletedCount > 0;
     }
 
+    async getFollowingIds(userId: string): Promise<string[]> {
+        return this.executeWithLogging('getFollowingIds', async () => {
+            try {
+                const follows = await (this.model as Model<any>)
+                    .find({
+                        follower: new Types.ObjectId(userId),
+                        targetType: 'user',
+                        status: 1,
+                    })
+                    .select('targetId')
+                    .lean();
+
+                return follows.map((f: any) => f.targetId.toString());
+            } catch (error: any) {
+                throw new DatabaseError(
+                    'Failed to get following IDs',
+                    'getFollowingIds',
+                    { userId, error: error.message },
+                    { cause: error },
+                );
+            }
+        });
+    }
+
     async getFollowing(userId: string, options: ProcessedQueryFilters) {
         return this.executeWithLogging('getFollowing', async () => {
             try {
                 const pipeline: any[] = [
                     {
                         $match: {
-                            follower: new mongoose.Types.ObjectId(userId),
+                            follower: new Types.ObjectId(userId),
                             targetType: 'user',
                             status: 1,
                         },
@@ -58,7 +90,7 @@ class FollowRepository extends MongooseRepositoryBase<any> {
                     {
                         $lookup: {
                             from: 'users',
-                            localField: 'target',
+                            localField: 'targetId',
                             foreignField: '_id',
                             as: 'user',
                         },
@@ -72,11 +104,8 @@ class FollowRepository extends MongooseRepositoryBase<any> {
                     {
                         $project: {
                             _id: 0,
-                            user: {
-                                id: '$user._id',
-                                name: '$user.name',
-                                email: '$user.email',
-                            },
+                            userId: '$user._id',
+                            name: '$user.name',
                         },
                     },
                 ];
@@ -84,23 +113,29 @@ class FollowRepository extends MongooseRepositoryBase<any> {
                 if (options.order?.length) {
                     const sort: any = {};
                     options.order.forEach(([field, dir]) => {
-                        sort[`user.${field}`] = dir === 'asc' ? 1 : -1;
+                        if (['name', 'createdAt'].includes(field)) {
+                            sort[field] = dir === 'asc' ? 1 : -1;
+                        }
                     });
-                    pipeline.push({ $sort: sort });
+                    if (Object.keys(sort).length > 0) {
+                        pipeline.push({ $sort: sort });
+                    }
+                } else {
+                    pipeline.push({ $sort: { createdAt: -1 } });
                 }
 
                 if (options.pagination) {
-                    pipeline.push({ $skip: options.pagination.offset });
-
-                    if (options.pagination.limit && options.pagination.limit > 0)
+                    pipeline.push({ $skip: options.pagination.offset || 0 });
+                    if (options.pagination.limit && options.pagination.limit > 0) {
                         pipeline.push({ $limit: options.pagination.limit });
+                    }
                 }
 
-                const result = await this.model.aggregate(pipeline).exec();
-                return result.map((r: any) => r.user);
+                const result = await (this.model as Model<any>).aggregate(pipeline).exec();
+                return result;
             } catch (error: any) {
                 throw new DatabaseError(
-                    'Mongoose getFollowing failed',
+                    'Failed to get following',
                     'getFollowing',
                     { userId, options, error: error.message },
                     { cause: error },
@@ -115,7 +150,7 @@ class FollowRepository extends MongooseRepositoryBase<any> {
                 const pipeline: any[] = [
                     {
                         $match: {
-                            target: new mongoose.Types.ObjectId(userId),
+                            targetId: new Types.ObjectId(userId),
                             targetType: 'user',
                             status: 1,
                         },
@@ -137,11 +172,8 @@ class FollowRepository extends MongooseRepositoryBase<any> {
                     {
                         $project: {
                             _id: 0,
-                            user: {
-                                id: '$user._id',
-                                name: '$user.name',
-                                email: '$user.email',
-                            },
+                            userId: '$user._id',
+                            name: '$user.name',
                         },
                     },
                 ];
@@ -149,23 +181,29 @@ class FollowRepository extends MongooseRepositoryBase<any> {
                 if (options.order?.length) {
                     const sort: any = {};
                     options.order.forEach(([field, dir]) => {
-                        sort[`user.${field}`] = dir === 'asc' ? 1 : -1;
+                        if (['name', 'createdAt'].includes(field)) {
+                            sort[field] = dir === 'asc' ? 1 : -1;
+                        }
                     });
-                    pipeline.push({ $sort: sort });
+                    if (Object.keys(sort).length > 0) {
+                        pipeline.push({ $sort: sort });
+                    }
+                } else {
+                    pipeline.push({ $sort: { createdAt: -1 } });
                 }
 
                 if (options.pagination) {
-                    pipeline.push({ $skip: options.pagination.offset });
-
-                    if (options.pagination.limit && options.pagination.limit > 0)
+                    pipeline.push({ $skip: options.pagination.offset || 0 });
+                    if (options.pagination.limit && options.pagination.limit > 0) {
                         pipeline.push({ $limit: options.pagination.limit });
+                    }
                 }
 
-                const result = await this.model.aggregate(pipeline).exec();
-                return result.map((r: any) => r.user);
+                const result = await (this.model as Model<any>).aggregate(pipeline).exec();
+                return result;
             } catch (error: any) {
                 throw new DatabaseError(
-                    'Mongoose getFollowers failed',
+                    'Failed to get followers',
                     'getFollowers',
                     { userId, options, error: error.message },
                     { cause: error },
@@ -173,6 +211,16 @@ class FollowRepository extends MongooseRepositoryBase<any> {
             }
         });
     }
+
+    async countFollows(userId: string, type: 'followers' | 'following'): Promise<number> {
+        return this.executeWithLogging('countFollows', async () => {
+            const filter = type === 'followers' 
+                ? { targetId: new Types.ObjectId(userId), targetType: 'user', status: 1 }
+                : { follower: new Types.ObjectId(userId), targetType: 'user', status: 1 };
+                
+            return await this.count(filter);
+        });
+    }
 }
 
-export default new FollowRepository();
+export { FollowRepository };

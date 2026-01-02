@@ -27,6 +27,65 @@ class PostRepository extends MongooseRepositoryBase<any> {
         });
     }
 
+    async getByUser(userId: string, options: ProcessedQueryFilters) {
+        return this.getAllActive(options, { user: userId });
+    }
+
+    async getByTag(tag: string, options: ProcessedQueryFilters) {
+        return this.getAllActive(options, { 
+            tags: tag,
+            publishStatus: 'published'
+        });
+    }
+
+    async getReposts(postId: string, options: ProcessedQueryFilters) {
+        return this.getAllActive(options, {
+            type: 'repost',
+            originalPost: postId,
+            publishStatus: 'published'
+        });
+    }
+
+    async hasReposted(userId: string, postId: string): Promise<boolean> {
+        return this.executeWithLogging('hasReposted', async () => {
+            const exists = await this.model.exists({
+                user: new mongoose.Types.ObjectId(userId),
+                originalPost: new mongoose.Types.ObjectId(postId),
+                type: 'repost',
+                status: 1
+            });
+            return !!exists;
+        });
+    }
+
+    async searchByText(query: string, options: ProcessedQueryFilters) {
+        return this.executeWithLogging('searchByText', async () => {
+            try {
+                const filter = {
+                    $text: { $search: query },
+                    status: 1,
+                    publishStatus: 'published'
+                };
+                
+                const results = await this.model
+                    .find(filter)
+                    .skip(options.pagination?.offset || 0)
+                    .limit(options.pagination?.limit || 10)
+                    .sort({ score: { $meta: 'textScore' } })
+                    .exec();
+                    
+                return results.map((r: any) => r.toJSON());
+            } catch (error: any) {
+                throw new DatabaseError(
+                    'Mongoose searchByText failed',
+                    'searchByText',
+                    { query, options, error: error.message },
+                    { cause: error },
+                );
+            }
+        });
+    }
+
     async getCombinedFeed(viewerId: string, options: ProcessedQueryFilters) {
         return this.executeWithLogging('getCombinedFeed', async () => {
             try {
@@ -138,6 +197,7 @@ class PostRepository extends MongooseRepositoryBase<any> {
                         },
                     },
                 ];
+
                 if (options.order?.length) {
                     const sort: any = {};
                     options.order.forEach(([field, dir]) => {
@@ -147,12 +207,14 @@ class PostRepository extends MongooseRepositoryBase<any> {
                 } else {
                     pipeline.push({ $sort: { createdAt: -1 } });
                 }
+
                 if (options.pagination) {
                     pipeline.push({ $skip: options.pagination.offset });
                     if (options.pagination.limit && options.pagination.limit > 0) {
                         pipeline.push({ $limit: options.pagination.limit });
                     }
                 }
+
                 return await this.model.aggregate(pipeline).exec();
             } catch (error: any) {
                 throw new DatabaseError(
@@ -166,4 +228,4 @@ class PostRepository extends MongooseRepositoryBase<any> {
     }
 }
 
-export default new PostRepository();
+export { PostRepository };

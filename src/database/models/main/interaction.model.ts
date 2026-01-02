@@ -1,7 +1,7 @@
 import { Schema } from 'mongoose';
 import { MongooseModelBase } from '@database/models/bases/mongoose.model.js';
 
-export type InteractionType = 'like' | 'comment';
+export type InteractionType = 'like' | 'comment' | 'repost';
 
 export default class InteractionModel extends MongooseModelBase {
     static override get modelName(): string {
@@ -24,13 +24,16 @@ export default class InteractionModel extends MongooseModelBase {
 
             type: {
                 type: String,
-                enum: ['like', 'comment'],
+                enum: ['like', 'comment', 'repost'],
                 required: true,
             },
 
             text: {
                 type: String,
                 trim: true,
+                required: function (this: any) {
+                    return this.type === 'comment';
+                },
             },
 
             status: {
@@ -41,21 +44,32 @@ export default class InteractionModel extends MongooseModelBase {
     }
 
     static override applyIndices(schema: Schema): void {
-        // Búsqueda
         schema.index({ post: 1, createdAt: -1 });
         schema.index({ user: 1 });
         schema.index({ type: 1 });
         schema.index({ status: 1 });
 
-        // Like único por usuario/post
         schema.index(
             { user: 1, post: 1, type: 1 },
             {
                 unique: true,
                 partialFilterExpression: {
-                    type: 'like',
+                    type: { $in: ['like', 'repost'] },
                 },
             },
         );
+    }
+
+    static override applyHooks(schema: Schema): void {
+        schema.pre('validate', function (next) {
+            if (this.type === 'comment' && (!this.text || this.text.trim().length === 0)) {
+                next(new Error('Comment must have text'));
+                return;
+            }
+            if (this.type !== 'comment' && this.text) {
+                this.text = undefined;
+            }
+            next();
+        });
     }
 }

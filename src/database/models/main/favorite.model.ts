@@ -31,8 +31,6 @@ export default class FavoriteModel extends MongooseModelBase {
         schema.index({ user: 1 });
         schema.index({ post: 1 });
         schema.index({ status: 1 });
-
-        // Un post solo puede ser favorito una vez por usuario
         schema.index({ user: 1, post: 1 }, { unique: true });
     }
 }

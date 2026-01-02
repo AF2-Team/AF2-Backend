@@ -36,7 +36,5 @@ export default class TagModel extends MongooseModelBase {
         schema.index({ status: 1 });
     }
 
-    static override applyHooks(_schema: Schema): void {
-        // Si luego hay que normalizar, este es el lugar
-    }
+    static override applyHooks(_schema: Schema): void {}
 }

@@ -30,23 +30,9 @@ class FavoriteRepository extends MongooseRepositoryBase<any> {
     }
 
     async deleteFavorite(userId: string, postId: string): Promise<boolean> {
-        return this.executeWithLogging('deleteFavorite', async () => {
-            try {
-                const result = await this.model.deleteOne({
-                    user: userId,
-                    post: postId,
-                });
+        const deletedCount = await this.remove({ user: userId, post: postId }, { single: true, softFail: true });
 
-                return (result.deletedCount ?? 0) > 0;
-            } catch (error: any) {
-                throw new DatabaseError(
-                    'Mongoose deleteFavorite failed',
-                    'deleteFavorite',
-                    { userId, postId, error: error.message },
-                    { cause: error },
-                );
-            }
-        });
+        return deletedCount > 0;
     }
 
     async getFavorites(userId: string, options: ProcessedQueryFilters) {

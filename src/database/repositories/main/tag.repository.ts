@@ -16,38 +16,25 @@ class TagRepository extends MongooseRepositoryBase<Tag> {
         super(TagModel);
     }
 
-    async findOrCreate(normalized: string, name: string): Promise<Tag> {
-        return this.executeWithLogging('findOrCreate', async () => {
-            try {
-                const doc = await this.model.findOneAndUpdate(
-                    { normalized },
-                    {
-                        $setOnInsert: {
-                            name,
-                            normalized,
-                            postsCount: 0,
-                            status: 1,
-                        },
-                    },
-                    { upsert: true, new: true, runValidators: true },
-                );
+    async updOrCreate(tagName: string): Promise<Tag> {
+        const normalized = tagName.toLowerCase().trim();
 
-                return doc!.toJSON() as Tag;
-            } catch (error: any) {
-                throw new DatabaseError(
-                    'Mongoose findOrCreate failed',
-                    'findOrCreate',
-                    { normalized, name, error: error.message },
-                    { cause: error },
-                );
-            }
-        });
+        return await this.upsert(
+            { normalized },
+            {
+                name: tagName,
+                normalized,
+                postsCount: 0,
+                status: 1,
+            },
+        );
     }
 
     async incrementPosts(tagId: string, value: number): Promise<boolean> {
         return this.executeWithLogging('incrementPosts', async () => {
             try {
                 const result = await this.model.updateOne({ _id: tagId }, { $inc: { postsCount: value } });
+
                 return (result.modifiedCount ?? 0) > 0;
             } catch (error: any) {
                 throw new DatabaseError(
@@ -67,14 +54,14 @@ class TagRepository extends MongooseRepositoryBase<Tag> {
 
                 if (options.pagination) {
                     query.skip(options.pagination.offset);
-                    if (options.pagination.limit > 0) {
-                        query.limit(options.pagination.limit);
-                    }
+
+                    if (options.pagination.limit && options.pagination.limit > 0) query.limit(options.pagination.limit);
                 }
 
                 query.sort({ postsCount: -1 });
 
                 const docs = await query.exec();
+
                 return docs.map((d) => d.toJSON()) as Tag[];
             } catch (error: any) {
                 throw new DatabaseError(

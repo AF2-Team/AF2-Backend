@@ -32,24 +32,16 @@ class FollowRepository extends MongooseRepositoryBase<any> {
     }
 
     async deleteFollow(filter: { followerId: string; targetId: string; targetType: 'user' | 'tag' }): Promise<boolean> {
-        return this.executeWithLogging('deleteFollow', async () => {
-            try {
-                const result = await this.model.deleteOne({
-                    follower: filter.followerId,
-                    target: filter.targetId,
-                    targetType: filter.targetType,
-                });
+        const deletedCount = await this.remove(
+            {
+                follower: filter.followerId,
+                target: filter.targetId,
+                targetType: filter.targetType,
+            },
+            { single: true },
+        );
 
-                return (result.deletedCount ?? 0) > 0;
-            } catch (error: any) {
-                throw new DatabaseError(
-                    'Mongoose deleteFollow failed',
-                    'deleteFollow',
-                    { filter, error: error.message },
-                    { cause: error },
-                );
-            }
-        });
+        return deletedCount > 0;
     }
 
     async getFollowing(userId: string, options: ProcessedQueryFilters) {
@@ -99,9 +91,9 @@ class FollowRepository extends MongooseRepositoryBase<any> {
 
                 if (options.pagination) {
                     pipeline.push({ $skip: options.pagination.offset });
-                    if (options.pagination.limit > 0) {
+
+                    if (options.pagination.limit && options.pagination.limit > 0)
                         pipeline.push({ $limit: options.pagination.limit });
-                    }
                 }
 
                 const result = await this.model.aggregate(pipeline).exec();
@@ -164,9 +156,9 @@ class FollowRepository extends MongooseRepositoryBase<any> {
 
                 if (options.pagination) {
                     pipeline.push({ $skip: options.pagination.offset });
-                    if (options.pagination.limit > 0) {
+
+                    if (options.pagination.limit && options.pagination.limit > 0)
                         pipeline.push({ $limit: options.pagination.limit });
-                    }
                 }
 
                 const result = await this.model.aggregate(pipeline).exec();

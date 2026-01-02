@@ -1,4 +1,4 @@
-import { Model, Types, QueryFilter } from 'mongoose';
+import { Model, Types, FilterQuery } from 'mongoose';
 import { BaseRepository } from '@bases/repository.base.js';
 import { DatabaseError } from '@errors/database.error.js';
 import { ProcessedQueryFilters } from '@rules/api-query.type.js';
@@ -31,7 +31,6 @@ export class MongooseRepositoryBase<T = any> extends BaseRepository<T, string, M
                 const mongooseFilter = this.buildFilter(filter);
                 const query = this.model.find(mongooseFilter);
 
-                // Paginación
                 if (options.pagination) {
                     query.skip(options.pagination.offset);
                     if (options.pagination.limit && options.pagination.limit > 0) {
@@ -39,7 +38,6 @@ export class MongooseRepositoryBase<T = any> extends BaseRepository<T, string, M
                     }
                 }
 
-                // Ordenamiento
                 if (options.order && options.order.length > 0) {
                     const sortObject: any = {};
                     options.order.forEach(([field, direction]) => {
@@ -56,7 +54,6 @@ export class MongooseRepositoryBase<T = any> extends BaseRepository<T, string, M
         });
     }
 
-    // Implementación requerida por la clase abstracta
     async getAllActive(options: ProcessedQueryFilters, filter?: Partial<T>): Promise<T[]> {
         return this.getAll(options, { ...filter, status: 1 } as any);
     }
@@ -107,7 +104,25 @@ export class MongooseRepositoryBase<T = any> extends BaseRepository<T, string, M
                 throw new DatabaseError(
                     'Mongoose update failed',
                     'update',
-                    { id, error: error.message },
+                    { id, data, error: error.message },
+                    { cause: error },
+                );
+            }
+        });
+    }
+
+    async getOrCreate(filter: Record<string, any>, createData: Partial<T>): Promise<T> {
+        return this.executeWithLogging('getOrCreate', async () => {
+            try {
+                const existing = await this.getOne(filter);
+                if (existing) return existing;
+                
+                return await this.create(createData);
+            } catch (error: any) {
+                throw new DatabaseError(
+                    `Mongoose getOrCreate failed in ${this.model.modelName}`,
+                    'getOrCreate',
+                    { filter, createData, error: error.message },
                     { cause: error },
                 );
             }
@@ -129,7 +144,6 @@ export class MongooseRepositoryBase<T = any> extends BaseRepository<T, string, M
                         setDefaultsOnInsert: true,
                     },
                 );
-
                 return doc!.toJSON() as T;
             } catch (error: any) {
                 throw new DatabaseError(
@@ -200,17 +214,14 @@ export class MongooseRepositoryBase<T = any> extends BaseRepository<T, string, M
         });
     }
 
-    private buildFilter(filter?: Partial<T> | Record<string, unknown>): QueryFilter<any> {
+    private buildFilter(filter?: Partial<T> | Record<string, unknown>): FilterQuery<any> {
         if (!filter) return {};
 
         const sanitized = this.sanitizeFilter(filter);
         const query: Record<string, any> = {};
 
         for (const [key, value] of Object.entries(sanitized)) {
-            // Manejo especial para filtros avanzados (ej. rangos, búsquedas parciales)
-            // Aquí puedes adaptar tu lógica de 'qc.' (Query Conditions)
             if (key.startsWith('q.')) {
-                // Implementación básica para búsqueda parcial con regex
                 query[key.slice(2)] = { $regex: value, $options: 'i' };
             } else {
                 query[key] = value;

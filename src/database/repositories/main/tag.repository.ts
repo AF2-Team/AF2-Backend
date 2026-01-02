@@ -1,3 +1,4 @@
+import { Model } from 'mongoose';
 import TagModel from '@database/models/main/tag.model.js';
 import { MongooseRepositoryBase } from '@database/repositories/bases/mongoose.repository.js';
 import { DatabaseError } from '@errors/database.error.js';
@@ -16,25 +17,27 @@ class TagRepository extends MongooseRepositoryBase<Tag> {
         super(TagModel);
     }
 
-    async updOrCreate(tagName: string): Promise<Tag> {
+    async getOrCreate(tagName: string): Promise<Tag> {
         const normalized = tagName.toLowerCase().trim();
 
-        return await this.upsert(
+        return await super.getOrCreate(
             { normalized },
             {
                 name: tagName,
                 normalized,
                 postsCount: 0,
                 status: 1,
-            },
+            }
         );
     }
 
     async incrementPosts(tagId: string, value: number): Promise<boolean> {
         return this.executeWithLogging('incrementPosts', async () => {
             try {
-                const result = await this.model.updateOne({ _id: tagId }, { $inc: { postsCount: value } });
-
+                const result = await (this.model as Model<any>).updateOne(
+                    { _id: tagId }, 
+                    { $inc: { postsCount: value } }
+                );
                 return (result.modifiedCount ?? 0) > 0;
             } catch (error: any) {
                 throw new DatabaseError(
@@ -50,19 +53,19 @@ class TagRepository extends MongooseRepositoryBase<Tag> {
     async getTrending(options: ProcessedQueryFilters): Promise<Tag[]> {
         return this.executeWithLogging('getTrending', async () => {
             try {
-                const query = this.model.find({ status: 1 });
+                const query = (this.model as Model<any>).find({ status: 1 });
 
                 if (options.pagination) {
-                    query.skip(options.pagination.offset);
+                    query.skip(options.pagination.offset || 0);
 
-                    if (options.pagination.limit && options.pagination.limit > 0) query.limit(options.pagination.limit);
+                    if (options.pagination.limit && options.pagination.limit > 0) 
+                        query.limit(options.pagination.limit);
                 }
 
                 query.sort({ postsCount: -1 });
 
                 const docs = await query.exec();
-
-                return docs.map((d) => d.toJSON()) as Tag[];
+                return docs.map((d: any) => d.toJSON()) as Tag[];
             } catch (error: any) {
                 throw new DatabaseError(
                     'Mongoose getTrending failed',
@@ -73,6 +76,20 @@ class TagRepository extends MongooseRepositoryBase<Tag> {
             }
         });
     }
+
+    async searchByName(query: string, options: ProcessedQueryFilters): Promise<Tag[]> {
+        return this.executeWithLogging('searchByName', async () => {
+            const filter = {
+                $or: [
+                    { name: { $regex: query, $options: 'i' } },
+                    { normalized: { $regex: query.toLowerCase(), $options: 'i' } }
+                ],
+                status: 1
+            };
+            
+            return this.getAllActive(options, filter);
+        });
+    }
 }
 
-export default new TagRepository();
+export { TagRepository };

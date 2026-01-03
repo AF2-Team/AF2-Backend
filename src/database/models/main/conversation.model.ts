@@ -16,13 +16,16 @@ export default class ConversationModel extends MongooseModelBase {
                 },
             ],
 
-            lastMessage: {
+            lastMessageText: {
                 type: String,
                 trim: true,
+                maxlength: 2000,
+                default: null,
             },
 
             lastMessageAt: {
                 type: Date,
+                default: null,
             },
 
             status: {
@@ -32,9 +35,18 @@ export default class ConversationModel extends MongooseModelBase {
         };
     }
 
+    static override applyHooks(schema: Schema): void {
+        schema
+            .path('participants')
+            .validate(
+                (value: any[]) => Array.isArray(value) && value.length >= 2,
+                'A conversation must have at least 2 participants',
+            );
+    }
+
     static override applyIndices(schema: Schema): void {
         schema.index({ participants: 1 });
-        schema.index({ lastMessageAt: -1 });
+        schema.index({ participants: 1, lastMessageAt: -1 });
         schema.index({ status: 1 });
     }
 }

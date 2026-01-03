@@ -1,41 +1,28 @@
 import mongoose, { Schema, Model, SchemaDefinition, SchemaOptions, Document } from 'mongoose';
 import { BaseModel } from '@bases/model.base.js';
 
-// Extender el tipo de Model de Mongoose para incluir dbInstanceName
 export interface MongooseModelWithDbInstance<T extends Document> extends Model<T> {
-    dbInstanceName?: string;
+    dbInstanceName: string;
 }
 
 export abstract class MongooseModelBase extends BaseModel {
     static instance: MongooseModelWithDbInstance<any>;
 
-    /**
-     * Define la estructura del Schema de Mongoose
-     */
     static definition(): SchemaDefinition {
         throw new Error('definition() must be implemented');
     }
 
-    /**
-     * Define los índices del esquema
-     */
-    static applyIndices(schema: Schema): void {}
+    static applyIndices(_schema: Schema): void {}
 
-    /**
-     * Define los hooks (middleware) del esquema
-     */
-    static applyHooks(schema: Schema): void {}
+    static applyHooks(_schema: Schema): void {}
 
-    /**
-     * Opciones adicionales del Schema (timestamps, collection name, etc)
-     */
     static schemaOptions(): SchemaOptions {
         return {
             timestamps: true,
             versionKey: false,
             toJSON: {
                 virtuals: true,
-                transform: (_: any, ret: any) => {
+                transform: (_doc, ret: any) => {
                     ret.id = ret._id;
                     delete ret._id;
                     delete ret.__v;
@@ -46,24 +33,33 @@ export abstract class MongooseModelBase extends BaseModel {
         };
     }
 
-    /**
-     * Inicializa el modelo en la conexión de Mongoose
-     */
     static override init(_dbInstance: any, dbInstanceName: string): MongooseModelWithDbInstance<any> {
+        if (!dbInstanceName || typeof dbInstanceName !== 'string') {
+            throw new Error(`[${this.modelName}] dbInstanceName must be a non-empty string`);
+        }
+
         const schema = new Schema(this.definition(), this.schemaOptions());
 
-        // Inyectamos la lógica personalizada antes de compilar el modelo
         this.applyIndices(schema);
-        this.applyHooks(schema);
 
-        // Verificamos si el modelo ya está registrado para evitar re-registros
-        if (mongoose.models[this.modelName])
-            this.instance = mongoose.models[this.modelName] as MongooseModelWithDbInstance<any>;
-        else this.instance = mongoose.model(this.modelName, schema) as MongooseModelWithDbInstance<any>;
+        if (this.applyHooks !== MongooseModelBase.applyHooks) {
+            this.applyHooks(schema);
+        }
 
-        // Asignamos el nombre de la instancia de base de datos
-        this.instance.dbInstanceName = dbInstanceName;
+        let model: Model<any>;
 
-        return this.instance;
+        if (mongoose.models[this.modelName]) {
+            model = mongoose.models[this.modelName];
+        } else {
+            model = mongoose.model(this.modelName, schema);
+        }
+
+        const typedModel = model as unknown as MongooseModelWithDbInstance<any>;
+
+        typedModel.dbInstanceName = dbInstanceName;
+
+        this.instance = typedModel;
+
+        return typedModel;
     }
 }

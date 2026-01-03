@@ -1,42 +1,35 @@
 import FavoriteModel from '@database/models/main/favorite.model.js';
 import { MongooseRepositoryBase } from '@database/repositories/bases/mongoose.repository.js';
-import { DatabaseError } from '@errors/database.error.js';
-import { ProcessedQueryFilters } from '@rules/api-query.type.js';
 
-class FavoriteRepository extends MongooseRepositoryBase<any> {
+class FavoriteRepository extends MongooseRepositoryBase<typeof FavoriteModel> {
     constructor() {
         super(FavoriteModel);
     }
 
     async exists(userId: string, postId: string): Promise<boolean> {
-        return this.executeWithLogging('exists', async () => {
-            try {
-                const result = await this.model.exists({
-                    user: userId,
-                    post: postId,
-                    status: 1,
-                });
-
-                return !!result;
-            } catch (error: any) {
-                throw new DatabaseError(
-                    'Mongoose exists failed',
-                    'exists',
-                    { userId, postId, error: error.message },
-                    { cause: error },
-                );
-            }
+        const result = await this.model.exists({
+            user: userId,
+            post: postId,
+            status: 1,
         });
+
+        return !!result;
     }
 
-    async deleteFavorite(userId: string, postId: string): Promise<boolean> {
-        const deletedCount = await this.remove({ user: userId, post: postId }, { single: true, softFail: true });
+    async remove(userId: string, postId: string): Promise<boolean> {
+        const result = await this.model.deleteOne({
+            user: userId,
+            post: postId,
+        });
 
-        return deletedCount > 0;
+        return (result.deletedCount ?? 0) > 0;
     }
 
-    async getFavorites(userId: string, options: ProcessedQueryFilters) {
-        return this.getAllActive(options, { user: userId });
+    async getByUser(userId: string, options: any = {}) {
+        return this.getAll(options, {
+            user: userId,
+            status: 1,
+        });
     }
 }
 

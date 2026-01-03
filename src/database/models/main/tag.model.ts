@@ -12,16 +12,22 @@ export default class TagModel extends MongooseModelBase {
                 type: String,
                 required: true,
                 trim: true,
+                maxlength: 60,
             },
+
             normalized: {
                 type: String,
                 required: true,
                 trim: true,
+                lowercase: true,
+                maxlength: 60,
             },
+
             postsCount: {
                 type: Number,
                 default: 0,
             },
+
             status: {
                 type: Number,
                 default: 1,
@@ -35,6 +41,4 @@ export default class TagModel extends MongooseModelBase {
         schema.index({ postsCount: -1 });
         schema.index({ status: 1 });
     }
-
-    static override applyHooks(_schema: Schema): void {}
 }

@@ -20,14 +20,23 @@ export default class MessageModel extends MongooseModelBase {
                 required: true,
             },
 
+            receiver: {
+                type: Schema.Types.ObjectId,
+                ref: 'User',
+                required: true,
+            },
+
             text: {
                 type: String,
-                trim: true,
                 required: true,
+                trim: true,
+                minlength: 1,
+                maxlength: 5000,
             },
 
             readAt: {
                 type: Date,
+                default: null,
             },
 
             status: {
@@ -40,6 +49,7 @@ export default class MessageModel extends MongooseModelBase {
     static override applyIndices(schema: Schema): void {
         schema.index({ conversation: 1, createdAt: -1 });
         schema.index({ sender: 1 });
+        schema.index({ receiver: 1 });
         schema.index({ readAt: 1 });
         schema.index({ status: 1 });
     }

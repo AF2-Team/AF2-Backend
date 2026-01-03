@@ -1,13 +1,12 @@
 import MessageModel from '@database/models/main/message.model.js';
 import { MongooseRepositoryBase } from '@database/repositories/bases/mongoose.repository.js';
-import { ProcessedQueryFilters } from '@rules/api-query.type.js';
 
-class MessageRepository extends MongooseRepositoryBase<any> {
+class MessageRepository extends MongooseRepositoryBase<typeof MessageModel> {
     constructor() {
         super(MessageModel);
     }
 
-    async getByConversation(conversationId: string, options: ProcessedQueryFilters) {
+    async getByConversation(conversationId: string, options: any = {}) {
         return this.getAll(
             {
                 ...options,

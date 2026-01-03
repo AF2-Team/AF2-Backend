@@ -52,7 +52,6 @@ export abstract class SequelizeModelBase extends BaseModel {
             };
         }
 
-        // Asignamos el nombre de la instancia de base de datos
         this.instance.dbInstanceName = dbInstanceName;
 
         return this.instance;

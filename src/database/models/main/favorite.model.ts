@@ -28,9 +28,8 @@ export default class FavoriteModel extends MongooseModelBase {
     }
 
     static override applyIndices(schema: Schema): void {
-        schema.index({ user: 1 });
-        schema.index({ post: 1 });
-        schema.index({ status: 1 });
         schema.index({ user: 1, post: 1 }, { unique: true });
+        schema.index({ user: 1, createdAt: -1 });
+        schema.index({ status: 1 });
     }
 }

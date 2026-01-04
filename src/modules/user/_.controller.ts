@@ -1,6 +1,6 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import { Request, Response } from 'express';
-import UserService from './user.service.js';
+import UserService from './_.service.js';
 
 class UserController extends ControllerBase {
     following = async (req: Request, res: Response) => {

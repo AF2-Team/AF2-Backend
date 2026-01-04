@@ -3,33 +3,37 @@ import { Request, Response } from 'express';
 import InteractionService from './interaction.service.js';
 
 class InteractionController extends ControllerBase {
-    like = async (req: Request, res: Response) => {
-        const userId = req.user?.id ?? req.body.userId;
-        const { postId } = req.params;
+    like = async (_req: Request, _res: Response) => {
+        const user = this.getUser<{ userId: string }>();
+        if (!user) {
+            return this.throwValidationError('Unauthorized');
+        }
 
-        if (!userId) return this.unauthorized(res);
+        const postId = this.requireParam('postId');
 
-        const result = await InteractionService.likePost(userId, postId);
-        return this.created(res, result, 'Like processed');
+        const result = await InteractionService.likePost(user.userId, postId);
+        return this.created(result, 'Like processed');
     };
 
-    comment = async (req: Request, res: Response) => {
-        const userId = req.user?.id ?? req.body.userId;
-        const { text } = req.body;
-        const { postId } = req.params;
+    comment = async (_req: Request, _res: Response) => {
+        const user = this.getUser<{ userId: string }>();
+        if (!user) {
+            return this.throwValidationError('Unauthorized');
+        }
 
-        if (!userId) return this.unauthorized(res);
+        const postId = this.requireParam('postId');
+        const text = this.requireBodyField('text');
 
-        const result = await InteractionService.commentPost(userId, postId, text);
-        return this.created(res, result, 'Comment created');
+        const result = await InteractionService.commentPost(user.userId, postId, text);
+        return this.created(result, 'Comment created');
     };
 
-    comments = async (req: Request, res: Response) => {
-        const { postId } = req.params;
-        const options = this.getQueryFilters(req);
+    comments = async (_req: Request, _res: Response) => {
+        const postId = this.requireParam('postId');
+        const options = this.getQueryFilters();
 
         const result = await InteractionService.getComments(postId, options);
-        return this.success(res, result);
+        return this.success(result);
     };
 }
 

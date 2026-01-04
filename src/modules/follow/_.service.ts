@@ -8,13 +8,9 @@ class FollowService extends BaseService {
             throw new Error('User cannot follow itself');
         }
 
-        const followRepo = Database.repository('main', 'follow');
+        const followRepo = Database.repository('main', 'follow') as any;
 
-        const exists = await followRepo.exists({
-            follower: followerId,
-            target: targetUserId,
-            targetType: 'user',
-        });
+        const exists = await followRepo.exists(followerId, targetUserId, 'user');
 
         if (exists) return { followed: true };
 
@@ -25,7 +21,6 @@ class FollowService extends BaseService {
             status: 1,
         });
 
-        // 🔔 notification
         await NotificationService.notify({
             user: targetUserId,
             actor: followerId,
@@ -37,15 +32,11 @@ class FollowService extends BaseService {
     }
 
     async unfollowUser(followerId: string, targetUserId: string) {
-        const followRepo = Database.repository('main', 'follow');
+        const followRepo = Database.repository('main', 'follow') as any;
 
-        const deleted = await followRepo.deleteFollow({
-            follower: followerId,
-            target: targetUserId,
-            targetType: 'user',
-        });
+        const removed = await followRepo.remove(followerId, targetUserId, 'user');
 
-        return { unfollowed: deleted };
+        return { unfollowed: removed };
     }
 }
 

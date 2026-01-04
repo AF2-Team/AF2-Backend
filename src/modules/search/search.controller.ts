@@ -6,10 +6,10 @@ class SearchController extends ControllerBase {
     search = async (req: Request, res: Response) => {
         const { q } = req.query;
 
-        const options = this.getQueryFilters(req);
-        const result = await SearchService.search(String(q || ''), options);
+        const options = this.getQueryFilters();
+        const result = await SearchService.search(String(q ?? ''), options);
 
-        return this.success(res, result);
+        return this.success(result);
     };
 }
 

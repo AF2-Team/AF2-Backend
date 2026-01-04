@@ -1,6 +1,6 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import { Request, Response } from 'express';
-import ConversationService from './conversation.service.js';
+import ConversationService from './_.service.js';
 
 class ConversationController extends ControllerBase {
     list = async (_req: Request, _res: Response) => {

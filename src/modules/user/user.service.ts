@@ -6,13 +6,21 @@ class UserService extends BaseService {
     async getFollowing(userId: string, options: ProcessedQueryFilters) {
         const followRepo = Database.repository('main', 'follow');
 
-        return followRepo.getFollowing(userId, options);
+        return followRepo.getAllActive(options, {
+            follower: userId,
+            targetType: 'user',
+            status: 1,
+        });
     }
 
     async getFollowers(userId: string, options: ProcessedQueryFilters) {
         const followRepo = Database.repository('main', 'follow');
 
-        return followRepo.getFollowers(userId, options);
+        return followRepo.getAllActive(options, {
+            target: userId,
+            targetType: 'user',
+            status: 1,
+        });
     }
 
     async getProfile(userId: string, viewerId?: string) {
@@ -23,7 +31,7 @@ class UserService extends BaseService {
         const user = await userRepo.getById(userId);
         if (!user || user.status !== 1) return null;
 
-        const [postsCount, followersCount, followingCount] = await Promise.all([
+        const [posts, followers, following] = await Promise.all([
             postRepo.count({ user: userId, status: 1 }),
             followRepo.count({ target: userId, targetType: 'user', status: 1 }),
             followRepo.count({ follower: userId, targetType: 'user', status: 1 }),
@@ -32,19 +40,21 @@ class UserService extends BaseService {
         let isFollowing = false;
 
         if (viewerId) {
-            isFollowing = await followRepo.exists({
+            const exists = await followRepo.getOne({
                 follower: viewerId,
                 target: userId,
                 targetType: 'user',
+                status: 1,
             });
+            isFollowing = !!exists;
         }
 
         return {
             user,
             stats: {
-                posts: postsCount,
-                followers: followersCount,
-                following: followingCount,
+                posts,
+                followers,
+                following,
             },
             viewer: {
                 isFollowing,

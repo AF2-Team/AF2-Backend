@@ -3,12 +3,12 @@ import { Request, Response } from 'express';
 import FeedService from './feed.service.js';
 
 class FeedController extends ControllerBase {
-    get = async (req: Request, res: Response) => {
-        const userId = req.user?.id; // viene del auth middleware
-        const options = this.getQueryFilters(req);
+    get = async (_req: Request, _res: Response) => {
+        const userId = this.getUser()?.id;
+        const options = this.getQueryFilters();
 
         const result = await FeedService.getFeed(userId, options);
-        return this.success(res, result);
+        return this.success(result);
     };
 }
 

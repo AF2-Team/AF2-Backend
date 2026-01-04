@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import InteractionController from './interaction.controller.js';
+import { AuthMiddleware } from '@middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.post('/:postId/like', InteractionController.like);
-router.post('/:postId/comment', InteractionController.comment);
+router.post('/:postId/like', AuthMiddleware.authenticate, InteractionController.like);
+router.post('/:postId/comment', AuthMiddleware.authenticate, InteractionController.comment);
 router.get('/:postId/comments', InteractionController.comments);
 
 export default router;

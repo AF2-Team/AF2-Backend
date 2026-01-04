@@ -1,6 +1,6 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import { Request, Response } from 'express';
-import FavoriteService from './favorite.service.js';
+import FavoriteService from './_.service.js';
 
 class FavoriteController extends ControllerBase {
     add = async (req: Request, res: Response) => {

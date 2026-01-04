@@ -1,42 +1,45 @@
 import { BaseService } from '@bases/service.base.js';
-import { Database } from '@database/index.js';
+import ConversationRepository from '@database/repositories/main/conversation.repository.js';
+import MessageRepository from '@database/repositories/main/message.repository.js';
 
 class MessageService extends BaseService {
     async sendMessage(data: any) {
         this.validateRequired(data, ['senderId', 'receiverId', 'text']);
 
-        const conversationRepo = Database.repository('main', 'conversation');
-        const messageRepo = Database.repository('main', 'message');
+        const senderId = String(data.senderId);
+        const receiverId = String(data.receiverId);
+        const text = String(data.text);
 
-        let conversation = await conversationRepo.findByParticipants(data.senderId, data.receiverId);
+        let conversation = await ConversationRepository.findByParticipants(senderId, receiverId);
 
         if (!conversation) {
-            conversation = await conversationRepo.create({
-                participants: [data.senderId, data.receiverId],
-                lastMessage: data.text,
+            conversation = await ConversationRepository.create({
+                participants: [senderId, receiverId],
+                lastMessage: text,
                 lastMessageAt: new Date(),
                 status: 1,
-            });
+            } as any);
         }
 
-        const message = await messageRepo.create({
-            conversation: conversation.id,
-            sender: data.senderId,
-            text: data.text,
-            status: 1,
-        });
+        const conversationId = (conversation as any).id ?? (conversation as any)._id;
 
-        await conversationRepo.update(conversation.id, {
-            lastMessage: data.text,
+        const message = await MessageRepository.create({
+            conversation: conversationId,
+            sender: senderId,
+            text,
+            status: 1,
+        } as any);
+
+        await ConversationRepository.update(conversationId, {
+            lastMessage: text,
             lastMessageAt: new Date(),
-        });
+        } as any);
 
         return message;
     }
 
     async getMessages(conversationId: string, options: any) {
-        const messageRepo = Database.repository('main', 'message');
-        return messageRepo.getByConversation(conversationId, options);
+        return MessageRepository.getByConversation(conversationId, options);
     }
 }
 

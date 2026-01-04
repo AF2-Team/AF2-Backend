@@ -3,8 +3,10 @@ import { Database } from '@database/index.js';
 
 class FavoriteService extends BaseService {
     async add(userId: string, postId: string) {
-        const favoriteRepo = Database.repository('main', 'favorite');
-        const postRepo = Database.repository('main', 'post');
+        this.validateRequired({ userId, postId }, ['userId', 'postId']);
+
+        const favoriteRepo = Database.repository('main', 'favorite') as any;
+        const postRepo = Database.repository('main', 'post') as any;
 
         const exists = await favoriteRepo.exists(userId, postId);
         if (exists) return { favorited: true };
@@ -21,11 +23,13 @@ class FavoriteService extends BaseService {
     }
 
     async remove(userId: string, postId: string) {
-        const favoriteRepo = Database.repository('main', 'favorite');
-        const postRepo = Database.repository('main', 'post');
+        this.validateRequired({ userId, postId }, ['userId', 'postId']);
 
-        const deleted = await favoriteRepo.deleteFavorite(userId, postId);
-        if (!deleted) return { unfavorited: false };
+        const favoriteRepo = Database.repository('main', 'favorite') as any;
+        const postRepo = Database.repository('main', 'post') as any;
+
+        const removed = await favoriteRepo.deleteFavorite(userId, postId);
+        if (!removed) return { unfavorited: false };
 
         await postRepo.incrementCounters(postId, 'favoritesCount', -1);
 
@@ -33,8 +37,10 @@ class FavoriteService extends BaseService {
     }
 
     async list(userId: string, options: any) {
-        const favoriteRepo = Database.repository('main', 'favorite');
-        return await favoriteRepo.getFavorites(userId, options);
+        this.validateRequired({ userId }, ['userId']);
+
+        const favoriteRepo = Database.repository('main', 'favorite') as any;
+        return favoriteRepo.getFavorites(userId, options);
     }
 }
 

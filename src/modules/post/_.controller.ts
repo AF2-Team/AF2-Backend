@@ -1,5 +1,5 @@
 import { ControllerBase } from '@bases/controller.base.js';
-import PostService from './post.service.js';
+import PostService from './_.service.js';
 
 class PostController extends ControllerBase {
     create = async () => {

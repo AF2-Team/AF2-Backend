@@ -4,8 +4,9 @@ import NotificationService from '../notification/notification.service.js';
 
 class InteractionService extends BaseService {
     async likePost(userId: string, postId: string) {
-        const interactionRepo = Database.repository('main', 'interaction');
-        const postRepo = Database.repository('main', 'post');
+        const interactionRepo = Database.repository('main', 'interaction') as unknown as any;
+
+        const postRepo = Database.repository('main', 'post') as unknown as any;
 
         const exists = await interactionRepo.exists({
             user: userId,
@@ -40,8 +41,9 @@ class InteractionService extends BaseService {
     async commentPost(userId: string, postId: string, text: string) {
         this.validateRequired({ text }, ['text']);
 
-        const interactionRepo = Database.repository('main', 'interaction');
-        const postRepo = Database.repository('main', 'post');
+        const interactionRepo = Database.repository('main', 'interaction') as unknown as any;
+
+        const postRepo = Database.repository('main', 'post') as unknown as any;
 
         const comment = await interactionRepo.create({
             user: userId,
@@ -67,7 +69,8 @@ class InteractionService extends BaseService {
     }
 
     async getComments(postId: string, options: any) {
-        const interactionRepo = Database.repository('main', 'interaction');
+        const interactionRepo = Database.repository('main', 'interaction') as unknown as any;
+
         return interactionRepo.getComments(postId, options);
     }
 }

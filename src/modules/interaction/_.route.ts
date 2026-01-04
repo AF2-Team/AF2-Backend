@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import InteractionController from './interaction.controller.js';
+import InteractionController from './_.controller.js';
 import { AuthMiddleware } from '@middlewares/auth.middleware.js';
 
 const router = Router();

@@ -1,6 +1,6 @@
 import { BaseService } from '@bases/service.base.js';
 import { Database } from '@database/index.js';
-import NotificationService from '../notification/notification.service.js';
+import NotificationService from '../notification/_.service.js';
 
 class InteractionService extends BaseService {
     async likePost(userId: string, postId: string) {

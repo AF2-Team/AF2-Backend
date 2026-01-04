@@ -3,29 +3,34 @@ import { Request, Response } from 'express';
 import ConversationService from './conversation.service.js';
 
 class ConversationController extends ControllerBase {
-    list = async (req: Request, res: Response) => {
-        const userId = req.user?.id; // cuando haya auth
-        const options = this.getQueryFilters(req);
+    list = async (_req: Request, _res: Response) => {
+        const user = this.getUser<{ userId: string }>();
+        const options = this.getQueryFilters();
 
-        const result = await ConversationService.getUserConversations(userId, options);
-        return this.success(res, result);
+        const result = await ConversationService.getUserConversations(user?.userId as string, options);
+
+        return this.success(result);
     };
 
-    get = async (req: Request, res: Response) => {
-        const { conversationId } = req.params;
+    get = async (_req: Request, _res: Response) => {
+        const { conversationId } = this.getParams();
 
         const result = await ConversationService.getConversation(conversationId);
-        if (!result) return this.notFound(res, 'Conversation not found');
 
-        return this.success(res, result);
+        if (!result) {
+            this.throwValidationError('Conversation not found');
+        }
+
+        return this.success(result);
     };
 
-    markRead = async (req: Request, res: Response) => {
-        const { conversationId } = req.params;
-        const userId = req.user?.id;
+    markRead = async (_req: Request, _res: Response) => {
+        const { conversationId } = this.getParams();
+        const user = this.getUser<{ userId: string }>();
 
-        const result = await ConversationService.markAsRead(conversationId, userId);
-        return this.success(res, result);
+        const result = await ConversationService.markAsRead(conversationId, user?.userId as string);
+
+        return this.success(result);
     };
 }
 

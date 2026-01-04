@@ -1,6 +1,6 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import { Request, Response } from 'express';
-import MessageService from './message.service.js';
+import MessageService from './_.service.js';
 
 class MessageController extends ControllerBase {
     send = async (req: Request, res: Response) => {

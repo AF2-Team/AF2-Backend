@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import FeedController from './feed.controller.js';
+import FeedController from './_.controller.js';
 
 const router = Router();
 

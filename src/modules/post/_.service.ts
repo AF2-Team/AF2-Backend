@@ -14,8 +14,22 @@ class PostService extends BaseService {
 
         for (const raw of extracted) {
             const normalized = normalizeHashtag(raw);
-            const tag = await tagRepo.findOrCreate(normalized, raw);
-            await tagRepo.incrementPosts(tag.id, 1);
+
+            let tag = await tagRepo.getOne({ name: normalized });
+
+            if (!tag) {
+                tag = await tagRepo.create({
+                    name: normalized,
+                    original: raw,
+                    postsCount: 1,
+                    status: 1,
+                });
+            } else {
+                await tagRepo.update(tag.id, {
+                    postsCount: (tag.postsCount ?? 0) + 1,
+                });
+            }
+
             normalizedTags.push(normalized);
         }
 
@@ -38,13 +52,36 @@ class PostService extends BaseService {
 
     async getByUser(userId: string, options: any) {
         const postRepo = Database.repository('main', 'post');
-        return postRepo.getByUser(userId, options);
+        return postRepo.getAllActive(options, {
+            user: userId,
+            publishStatus: 'published',
+        });
     }
 
     async getByTag(tag: string, options: any) {
         const postRepo = Database.repository('main', 'post');
         return postRepo.getAllActive(options, {
             tags: tag,
+            publishStatus: 'published',
+        });
+    }
+
+    async getCombinedFeed(userId: string, options: any) {
+        const postRepo = Database.repository('main', 'post');
+
+        return postRepo.getAllActive(options, {
+            publishStatus: 'published',
+        });
+    }
+
+    async repost(userId: string, originalPostId: string) {
+        const postRepo = Database.repository('main', 'post');
+
+        return postRepo.create({
+            user: userId,
+            type: 'repost',
+            originalPost: originalPostId,
+            status: 1,
             publishStatus: 'published',
         });
     }

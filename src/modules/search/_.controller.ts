@@ -1,6 +1,6 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import { Request, Response } from 'express';
-import SearchService from './search.service.js';
+import SearchService from './_.service.js';
 
 class SearchController extends ControllerBase {
     search = async (req: Request, res: Response) => {

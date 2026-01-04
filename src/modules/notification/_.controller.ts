@@ -1,53 +1,29 @@
-import { BaseService } from '@bases/service.base.js';
-import { Database } from '@database/index.js';
-import { extractHashtags, normalizeHashtag } from '@utils/hashtags.util.js';
+import { ControllerBase } from '@bases/controller.base.js';
+import { Request, Response } from 'express';
+import NotificationService from './notification.service.js';
 
-class PostService extends BaseService {
-    async createPost(data: any) {
-        this.validateRequired(data, ['user', 'text']);
-
-        const postRepo = Database.repository('main', 'post');
-        const tagRepo = Database.repository('main', 'tag');
-
-        const extracted = extractHashtags(data.text);
-        const normalizedTags: string[] = [];
-
-        for (const raw of extracted) {
-            const normalized = normalizeHashtag(raw);
-            const tag = await tagRepo.findOrCreate(normalized, raw);
-            await tagRepo.incrementPosts(tag.id, 1);
-            normalizedTags.push(normalized);
+class NotificationController extends ControllerBase {
+    list = async (_req: Request, _res: Response) => {
+        const user = this.getUser<{ id: string }>();
+        if (!user) {
+            this.throwValidationError('Unauthorized');
         }
 
-        return postRepo.create({
-            user: data.user,
-            text: data.text,
-            fontStyle: data.fontStyle,
-            tags: normalizedTags,
-            status: 1,
-            publishStatus: 'published',
-        });
-    }
+        const options = this.getQueryFilters();
+        const result = await NotificationService.getNotifications(user.id, options);
 
-    async getFeed(options: any) {
-        const postRepo = Database.repository('main', 'post');
-        return postRepo.getAllActive(options, {
-            publishStatus: 'published',
-        });
-    }
+        return this.success(result);
+    };
 
-    async getByUser(userId: string, options: any) {
-        const postRepo = Database.repository('main', 'post');
-        return postRepo.getByUser(userId, options);
-    }
+    markRead = async (_req: Request, _res: Response) => {
+        const user = this.getUser<{ id: string }>();
+        if (!user) {
+            this.throwValidationError('Unauthorized');
+        }
 
-    async getByTag(tag: string, options: any) {
-        const postRepo = Database.repository('main', 'post');
-        return postRepo.getAllActive(options, {
-            tags: tag,
-            publishStatus: 'published',
-        });
-    }
+        await NotificationService.markAllRead(user.id);
+        return this.success({ read: true });
+    };
 }
 
-export default new PostService();
+export default new NotificationController();

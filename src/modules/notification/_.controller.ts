@@ -1,6 +1,6 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import { Request, Response } from 'express';
-import NotificationService from './notification.service.js';
+import NotificationService from './_.service.js';
 
 class NotificationController extends ControllerBase {
     list = async (_req: Request, _res: Response) => {

@@ -1,7 +1,15 @@
+import { BaseService } from '@bases/service.base.js';
+import { Database } from '@database/index.js';
+import { ProcessedQueryFilters } from '@rules/api-query.type.js';
+
 class SearchService extends BaseService {
     async search(query: string, options: ProcessedQueryFilters) {
         if (!query || query.trim().length === 0) {
-            return { users: [], posts: [], tags: [] };
+            return {
+                users: [],
+                posts: [],
+                tags: [],
+            };
         }
 
         const q = query.trim();
@@ -41,3 +49,5 @@ class SearchService extends BaseService {
         };
     }
 }
+
+export default new SearchService();

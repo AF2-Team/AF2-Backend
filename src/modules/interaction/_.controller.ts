@@ -1,6 +1,6 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import { Request, Response } from 'express';
-import InteractionService from './interaction.service.js';
+import InteractionService from './_.service.js';
 
 class InteractionController extends ControllerBase {
     like = async (_req: Request, _res: Response) => {

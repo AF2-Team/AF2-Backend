@@ -36,7 +36,7 @@ class SocialController extends ControllerBase {
             return this.success(result);
         };
 
-         follow = async (req: Request, res: Response) => {
+        follow = async (req: Request, res: Response) => {
                 const userId = (req as any).user?.userId;
                 const { targetUserId } = req.body;
         
@@ -48,7 +48,7 @@ class SocialController extends ControllerBase {
                 this.created(result, 'Followed successfully');
             };
         
-            unfollow = async (req: Request, res: Response) => {
+        unfollow = async (req: Request, res: Response) => {
                 const userId = (req as any).user?.userId;
                 const { targetUserId } = req.body;
         
@@ -58,7 +58,31 @@ class SocialController extends ControllerBase {
         
                 const result = await SocialService.unfollowUser(userId, targetUserId);
                 this.success(result);
-            };
+        };
+
+        addFavorite = async (req: Request, res: Response) => {
+            const userId = req.user?.id ?? req.body.userId;
+            const { postId } = req.params;
+    
+            const result = await SocialService.addFavorite(userId, postId);
+            this.created(result, 'Post favorited');
+        };
+    
+        removeFavorite = async (req: Request, res: Response) => {
+            const userId = req.user?.id ?? req.body.userId;
+            const { postId } = req.params;
+    
+            const result = await SocialService.removeFavorite(userId, postId);
+            this.success(result, 'Post removed');
+        };
+    
+        listFavorites = async (req: Request, res: Response) => {
+            const { userId } = req.params;
+            const options = this.getQueryFilters();
+    
+            const result = await SocialService.listFavorites(userId, options);
+            this.success(result);
+        };    
         
         
 }

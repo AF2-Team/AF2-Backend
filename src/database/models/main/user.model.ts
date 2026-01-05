@@ -50,6 +50,12 @@ export default class UserModel extends MongooseModelBase {
                 default: null,
             },
 
+            coverUrl: {
+                type: String,
+                trim: true,
+                default: null,
+            },
+
             bio: {
                 type: String,
                 trim: true,

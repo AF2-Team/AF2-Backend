@@ -51,7 +51,7 @@ export abstract class BaseRepository<T, ID extends any = string, M = unknown> {
 
     abstract update(id: ID, data: Partial<T>): Promise<T | null>;
 
-    abstract delete(id: ID | ID[]): Promise<boolean>;
+    abstract delete(id: ID | ID[] | unknown): Promise<boolean>;
 
     abstract count(filter?: Partial<T> | Record<string, unknown>): Promise<number>;
 

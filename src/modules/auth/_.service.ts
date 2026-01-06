@@ -7,13 +7,13 @@ import crypto from 'crypto';
 
 class AuthService extends BaseService {
     async signup(data: any) {
-        const { email, password, name, username } = data;
+        const { name,  username, email, password  } = data;
 
-        this.validateRequired(data, ['email', 'password', 'name', 'username']);
+        this.validateRequired(data, ['name', 'username', 'email', 'password']);
 
         if (!BcryptUtil.validatePasswordStrength(password)) {
             throw new ValidationError('Weak password', [
-                'Password must be at least 6 characters and contain letters and numbers',
+                'Password must be at least 8 characters and contain letters and numbers',
             ]);
         }
 
@@ -102,7 +102,7 @@ class AuthService extends BaseService {
 
         if (!BcryptUtil.validatePasswordStrength(password)) {
             throw new ValidationError('Weak password', [
-                'Password must be at least 6 characters and contain letters and numbers',
+                'Password must be at least 8 characters and contain letters and numbers',
             ]);
         }
 

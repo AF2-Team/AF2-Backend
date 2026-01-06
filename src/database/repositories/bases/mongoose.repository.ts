@@ -30,6 +30,21 @@ export abstract class MongooseRepositoryBase<T> {
         try {
             return await fn();
         } catch (error: any) {
+            // Detect Mongo duplicate key error (E11000) and return a conflict with a helpful message
+            if (error && (error.code === 11000 || error.codeName === 'DuplicateKey')) {
+                const keyValue = error.keyValue || {};
+                const field = Object.keys(keyValue)[0];
+                const value = keyValue[field];
+                const userMessage = field ? `${field} already exists` : 'A resource with the same unique field already exists.';
+
+                throw new DatabaseError(
+                    `${this.model.modelName}.${operation}`,
+                    operation,
+                    { keyValue: error.keyValue, keyPattern: error.keyPattern, errmsg: error.errmsg },
+                    { statusCode: 409, userMessage, cause: error },
+                );
+            }
+
             throw new DatabaseError(`${this.model.modelName}.${operation}`, error);
         }
     }

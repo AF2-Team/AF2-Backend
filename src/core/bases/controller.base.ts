@@ -76,6 +76,9 @@ export abstract class ControllerBase {
         // Extraer req, res, next de los argumentos
         const [req, res, next] = args as [Request, Response, NextFunction];
 
+        //ver que esta recibiiendo args
+        console.log('controller args types:', typeof args[0], typeof args[1], typeof args[2]);
+
         // Configurar contexto de ejecución
         this.setupExecutionContext(req, res, next);
 

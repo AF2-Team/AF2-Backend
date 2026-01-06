@@ -3,7 +3,7 @@ import { Database } from '@database/index.js';
 import { ProcessedQueryFilters } from '@rules/api-query.type.js';
 
 type FeedItem = {
-    type: 'post';
+    type: 'post' | 'repost';
     post: any;
     createdAt: Date;
     score: number;
@@ -21,33 +21,56 @@ class FeedService extends BaseService {
 
     async getFeed(userId: string | undefined, options: ProcessedQueryFilters) {
         const postRepo = Database.repository('main', 'post');
+        const followRepo = Database.repository('main', 'follow');
+
+        let allowedUsers: string[] | undefined;
+
+        if (userId) {
+            const follows = await followRepo.getAllActive({}, { follower: userId, targetType: 'user', status: 1 });
+
+            allowedUsers = [userId, ...follows.map((f: any) => f.target)];
+        }
+
+        const cursorValue = (options as any)?.filters?.cursor;
+        const cursorDate = cursorValue ? new Date(cursorValue) : undefined;
+
+        const where: any = {
+            publishStatus: 'published',
+            status: 1,
+        };
+
+        if (allowedUsers) where.user = { $in: allowedUsers };
+        if (cursorDate) where.createdAt = { $lt: cursorDate };
+
+        const limit = options.pagination?.limit ?? 20;
+        const fetchLimit = limit * 3;
 
         const posts = await postRepo.getAllActive(
             {
-                pagination: options.pagination,
+                pagination: { limit: fetchLimit, offset: 0 },
                 order: [['createdAt', 'desc']],
             },
-            {
-                publishStatus: 'published',
-            },
+            where,
         );
 
         const scored: FeedItem[] = posts.map((post: any) => ({
-            type: 'post',
+            type: post.type === 'repost' ? 'repost' : 'post',
             post,
             createdAt: post.createdAt,
             score: this.calculateScore(post),
         }));
 
-        const sorted = scored.sort((a, b) => {
+        scored.sort((a, b) => {
             if (a.score !== b.score) return b.score - a.score;
             return b.createdAt.getTime() - a.createdAt.getTime();
         });
 
-        const offset = options.pagination?.offset ?? 0;
-        const limit = options.pagination?.limit ?? 20;
+        const sliced = scored.slice(0, limit);
 
-        return sorted.slice(offset, offset + limit);
+        return {
+            items: sliced,
+            nextCursor: sliced.length > 0 ? sliced[sliced.length - 1].createdAt.toISOString() : null,
+        };
     }
 }
 

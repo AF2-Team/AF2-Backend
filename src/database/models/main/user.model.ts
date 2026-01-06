@@ -2,9 +2,20 @@ import { Schema } from 'mongoose';
 import { MongooseModelBase } from '@database/models/bases/mongoose.model.js';
 
 export type User = {
+    _id?: any;
+    id?: string;
+
     name: string;
+    username: string;
     email: string;
     password: string;
+
+    avatarUrl?: string | null;
+    bio?: string | null;
+
+    resetPasswordToken?: string | null;
+    resetPasswordExpires?: Date | null;
+
     status: number;
 };
 
@@ -50,9 +61,13 @@ export default class UserModel extends MongooseModelBase {
                 default: null,
             },
 
-            coverUrl: {
+            resetPasswordToken: {
                 type: String,
-                trim: true,
+                default: null,
+            },
+
+            resetPasswordExpires: {
+                type: Date,
                 default: null,
             },
 

@@ -7,8 +7,9 @@ class ConversationService extends BaseService {
         this.validateRequired({ userId }, ['userId']);
 
         const conversationRepo = Database.repository('main', 'conversation');
+        const messageRepo = Database.repository('main', 'message') as any;
 
-        return conversationRepo.getAll(
+        const conversations = await conversationRepo.getAll(
             {
                 ...options,
                 order: [['lastMessageAt', 'desc']],
@@ -18,6 +19,19 @@ class ConversationService extends BaseService {
                 status: 1,
             },
         );
+
+        for (const convo of conversations) {
+            const unread = await messageRepo.model.countDocuments({
+                conversation: convo.id,
+                sender: { $ne: userId },
+                readBy: { $ne: userId },
+                status: 1,
+            });
+
+            convo.unreadCount = unread;
+        }
+
+        return conversations;
     }
 
     async getConversation(conversationId: string) {
@@ -34,6 +48,30 @@ class ConversationService extends BaseService {
 
         return conversationRepo.update(conversationId, {
             lastReadBy: userId,
+        });
+    }
+
+    async createConversation(creatorId: string, participantId: string) {
+        this.validateRequired({ creatorId, participantId }, ['creatorId', 'participantId']);
+
+        if (creatorId === participantId) {
+            throw new Error('Cannot create conversation with yourself');
+        }
+
+        const conversationRepo = Database.repository('main', 'conversation');
+
+        // Buscar conversación existente entre ambos
+        const existing = await conversationRepo.getOne({
+            participants: { $all: [creatorId, participantId] },
+            status: 1,
+        });
+
+        if (existing) return existing;
+
+        return conversationRepo.create({
+            participants: [creatorId, participantId],
+            lastMessageAt: null,
+            status: 1,
         });
     }
 }

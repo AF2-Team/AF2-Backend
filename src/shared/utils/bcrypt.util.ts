@@ -22,7 +22,7 @@ export class BcryptUtil {
     }
 
     static validatePasswordStrength(password: string): boolean {
-        const minLength = password.length >= 6;
+        const minLength = password.length >= 8;
         const hasLetter = /[a-zA-Z]/.test(password);
         const hasNumber = /\d/.test(password);
 

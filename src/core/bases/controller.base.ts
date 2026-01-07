@@ -26,7 +26,9 @@ export abstract class ControllerBase {
                 if (
                     typeof originalMethod === 'function' &&
                     prop !== 'constructor' &&
-                    !prop.toString().startsWith('_')
+                    !prop.toString().startsWith('_') &&
+                    // Lista de métodos protegidos que NO deben ser envueltos
+                    !['success', 'created', 'getRequest', 'getUser', 'throwValidationError'].includes(prop.toString())
                 ) {
                     return async (...args: any[]) => {
                         const boundMethod = () => originalMethod.apply(target, args);
@@ -84,6 +86,8 @@ export abstract class ControllerBase {
     }
 
     private processQueryFilters(req: Request): void {
+        
+        if (!req || typeof req !== 'object' || !req.query) return; 
         this.queryFilters = QueryBuilder.buildFromQuery(req.query);
         req.filters = this.queryFilters;
     }
@@ -147,7 +151,7 @@ export abstract class ControllerBase {
         this.sendErrorResponse(normalized);
     }
 
-    // FIX 3: validar Response antes de usar `.status`
+    // validar Response antes de usar `.status`
     private sendErrorResponse(error: AppError): void {
         if (
             !this.currentResponse ||

@@ -78,6 +78,13 @@ export abstract class MongooseRepositoryBase<T> {
         });
     }
 
+    async count(filter?: Partial<T> | Record<string, unknown>): Promise<number> {
+        return this.execute('count', async () => {
+            return await this.model.countDocuments(filter as any);
+        });
+    }
+
+
     async create(data: Partial<T>): Promise<T> {
         return this.execute('create', async () => {
             return this.model.create(data as any);

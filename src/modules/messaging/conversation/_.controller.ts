@@ -32,6 +32,19 @@ class ConversationController extends ControllerBase {
 
         return this.success(result);
     };
+
+    create = async (_req: Request, _res: Response) => {
+        const user = this.getUser<{ userId: string }>();
+        if (!user) {
+            this.throwValidationError('Unauthorized');
+        }
+
+        const participantId = this.requireBodyField('participantId');
+
+        const result = await ConversationService.createConversation(user.userId, participantId);
+
+        return this.created(result, 'Conversation created');
+    };
 }
 
 export default new ConversationController();

@@ -1,10 +1,29 @@
 import { Router } from 'express';
 import UserController from './_.controller.js';
+import { AuthMiddleware } from '@middlewares/auth.middleware.js';
+import { UploadMiddleware } from '@middlewares/upload.middleware.js';
 
 const router = Router();
 
+router.get('/me', AuthMiddleware.authenticate, UserController.getMe);
+router.get('/username/:username', UserController.getByUsername);
+
+// Perfil propio
+router.put('/me', AuthMiddleware.authenticate, UserController.updateMe);
+router.delete('/me', AuthMiddleware.authenticate, UserController.deleteMe);
+
+router.patch('/me/avatar', AuthMiddleware.authenticate, UploadMiddleware.single('avatar'), UserController.uploadAvatar);
+router.patch('/me/cover', AuthMiddleware.authenticate, UploadMiddleware.single('avatar'), UserController.uploadAvatar);
+
+
+// Contenido del usuario
+router.get('/:id', UserController.getById);
+router.get('/:id/posts', UserController.posts);
+router.get('/:id/reposts', UserController.reposts);
+router.get('/:id/favorites', UserController.favorites);
+
+// Social
 router.get('/:userId/following', UserController.following);
 router.get('/:userId/followers', UserController.followers);
-router.get('/:userId/profile', UserController.profile);
 
 export default router;

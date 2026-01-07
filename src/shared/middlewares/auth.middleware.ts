@@ -18,7 +18,7 @@ export class AuthMiddleware {
             }
 
             (req as any).user = {
-                id: decoded.userId,
+                _id: decoded.userId,
                 email: decoded.email,
                 role: decoded.role,
             };
@@ -42,7 +42,7 @@ export class AuthMiddleware {
 
                 if (decoded?.userId) {
                     (req as any).user = {
-                        id: decoded.userId,
+                        _id: decoded.userId,
                         email: decoded.email,
                         role: decoded.role,
                     };

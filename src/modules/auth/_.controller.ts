@@ -3,14 +3,44 @@ import { Request, Response } from 'express';
 import AuthService from './_.service.js';
 
 class AuthController extends ControllerBase {
-    signup = async (req: Request, _res: Response) => {
-        const result = await AuthService.signup(req.body);
-        this.created(result, 'User registered successfully');
+    signup = async (req: Request, res: Response) => {
+       try {
+            const result = await AuthService.signup(req.body);
+            
+            // 2. Respondemos DIRECTAMENTE usando 'res'
+            // Esto "cierra" la conexión y le avisa al celular que todo salió bien.
+            return res.status(201).json({
+                success: true,
+                message: 'User registered successfully',
+                data: result
+            });
+            
+            // O si tu ControllerBase.created acepta el res, úsalo así:
+            // this.created(res, result, 'User registered successfully');
+            
+        } catch (error) {
+            // Es buena práctica pasar el error al middleware de Express
+            const err = error as any;
+            return res.status(err.status || 400).json({
+                message: err.message || 'Error registration'
+            });
+        }
     };
 
-    login = async (req: Request, _res: Response) => {
-        const result = await AuthService.login(req.body);
-        this.success(result, 'Login successful');
+    login = async (req: Request, res: Response) => {
+      try {
+            const result = await AuthService.login(req.body);
+            return res.status(200).json({
+                success: true,
+                message: 'Login successful',
+                data: result
+            });
+        } catch (error) {
+             const err = error as any;
+             return res.status(err.status || 401).json({
+                message: err.message || 'Login failed'
+            });
+        }
     };
 
     me = async (req: Request, _res: Response) => {

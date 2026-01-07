@@ -43,7 +43,7 @@ export class AppConfig {
 
         const nodeEnv = process.env.NODE_ENV || 'development';
         const protocol = process.env.SECURE_PROTOCOL === 'true' ? 'https' : 'http';
-        const host = process.env.DOMAIN || process.env.API_HOST || '127.0.0.1';
+        const host = process.env.DOMAIN || process.env.API_HOST || '0.0.0.0';
         const port = parseInt(process.env.PORT || '3000', 10);
         const apiBaseUrl = `${protocol}://${host}${port !== 80 && port !== 443 ? `:${port}` : ''}`;
 

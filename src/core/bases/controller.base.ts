@@ -26,9 +26,7 @@ export abstract class ControllerBase {
                 if (
                     typeof originalMethod === 'function' &&
                     prop !== 'constructor' &&
-                    !prop.toString().startsWith('_') &&
-                    // Lista de métodos protegidos que NO deben ser envueltos
-                    !['success', 'created', 'getRequest', 'getUser', 'throwValidationError'].includes(prop.toString())
+                    !prop.toString().startsWith('_')
                 ) {
                     return async (...args: any[]) => {
                         const boundMethod = () => originalMethod.apply(target, args);
@@ -46,10 +44,6 @@ export abstract class ControllerBase {
     private async executeWithWrapper(method: Function, args: any[]): Promise<any> {
         const [req, res, next] = args;
 
-        //ver que esta recibiiendo args
-        console.log('controller args types:', typeof args[0], typeof args[1], typeof args[2]);
-
-        // Configurar contexto de ejecución
         this.setupExecutionContext(req, res, next);
 
         try {
@@ -86,8 +80,6 @@ export abstract class ControllerBase {
     }
 
     private processQueryFilters(req: Request): void {
-        
-        if (!req || typeof req !== 'object' || !req.query) return; 
         this.queryFilters = QueryBuilder.buildFromQuery(req.query);
         req.filters = this.queryFilters;
     }
@@ -151,7 +143,7 @@ export abstract class ControllerBase {
         this.sendErrorResponse(normalized);
     }
 
-    // validar Response antes de usar `.status`
+    // FIX 3: validar Response antes de usar `.status`
     private sendErrorResponse(error: AppError): void {
         if (
             !this.currentResponse ||

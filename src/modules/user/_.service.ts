@@ -55,7 +55,7 @@ class UserService extends BaseService {
         return Database.repository('main', 'user').update(userId, { status: 0 });
     }
 
-    // 🔽 existentes
+    // existentes
     async getFollowing(userId: string, options: ProcessedQueryFilters) {
         const followRepo = Database.repository('main', 'follow');
 

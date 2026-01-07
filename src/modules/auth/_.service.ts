@@ -7,9 +7,9 @@ import crypto from 'crypto';
 
 class AuthService extends BaseService {
     async signup(data: any) {
-        const { name,  username, email, password  } = data;
+        const { name, email, password, username } = data;
 
-        this.validateRequired(data, ['name', 'username', 'email', 'password']);
+        this.validateRequired(data, ['name', 'email', 'password', 'username']);
 
         if (!BcryptUtil.validatePasswordStrength(password)) {
             throw new ValidationError('Weak password', [
@@ -18,9 +18,10 @@ class AuthService extends BaseService {
         }
 
         const exists = await UserRepository.findByEmail(email);
-        if (exists) {
-            throw new ValidationError('Email already registered');
-        }
+        if (exists) throw new ValidationError('Email already registered');
+
+        const usernameExists = await UserRepository.getOne({ username });
+        if (usernameExists) throw new ValidationError('Username already taken');
 
         const user = await UserRepository.create({
             email,
@@ -82,7 +83,7 @@ class AuthService extends BaseService {
 
         const user = await UserRepository.findByEmail(email);
         if (!user) {
-            throw new ValidationError('User not found');
+            throw new ValidationError('If an account exists, an email was sent');
         }
 
         const token = crypto.randomBytes(32).toString('hex');

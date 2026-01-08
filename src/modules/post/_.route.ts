@@ -26,3 +26,5 @@ router.post('/:id/repost', AuthMiddleware.authenticate, PostController.repost);
 router.get('/:id/reposts', PostController.reposts);
 router.get('/:id/likes', PostController.likes);
 router.get('/:id/interactions', PostController.interactions);
+
+export default router;

@@ -5,13 +5,25 @@ import { ValidationError } from '@errors';
 
 class UserController extends ControllerBase {
     getById = async (req: Request, _res: Response) => {
+        try {
+        console.log("1. Entrando al controlador");
         const { id } = req.params;
+        
+        const result = await UserService.getProfileById(id);
+        console.log("2. Servicio terminó con éxito");
+        
+        return _res.json({ success: true, data: result });
+    } catch (error: any) {
+        console.error("❌ ERROR CAPTURADO EN CONTROLADOR:", error.message);
+        return _res.status(500).json({ success: false, error: error.message });
+    }
+        /*const { id } = req.params;
         const viewerId = (req as any).user?._id?.toString();
 
         const result = await UserService.getProfileById(id, viewerId);
         if (!result) throw new ValidationError('User not found');
 
-        this.success(result);
+        this.success(result);*/
     };
 
     getByUsername = async (req: Request, _res: Response) => {

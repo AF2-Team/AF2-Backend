@@ -44,6 +44,7 @@ class UserService extends BaseService {
             followRepo.count({ follower: userId, targetType: 'user', status: 1 }),
         ]);
 
+
         let isFollowing = false;
 
         if (viewerId && mongoose.Types.ObjectId.isValid(viewerId)) {
@@ -85,8 +86,6 @@ class UserService extends BaseService {
 
         return updated;
     }
-
-    /* ===== existentes ===== */
 
     async getFollowing(userId: string, options: ProcessedQueryFilters) {
         if (!userId) throw new ValidationError('User id is required');

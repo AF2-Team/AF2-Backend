@@ -5,6 +5,7 @@ class PostController extends ControllerBase {
     create = async () => {
         const body = this.getBody();
         const user = this.getUser<{ _id: string }>();
+
         if (!user) this.throwValidationError('Unauthorized');
 
         const result = await PostService.createPost({
@@ -41,12 +42,13 @@ class PostController extends ControllerBase {
         if (!user) this.throwValidationError('Unauthorized');
 
         await PostService.deletePost(postId, user._id);
-        return this.success({ success: true }, 'Post deleted');
+        return this.noContent('Post deleted');
     };
 
-    uploadMedia = async (req: any) => {
+    uploadMedia = async () => {
         const postId = this.requireParam('id');
         const user = this.getUser<{ _id: string }>();
+        const req = this.getRequest();
 
         if (!user) this.throwValidationError('Unauthorized');
         if (!req.file) this.throwValidationError('Media file required');
@@ -74,14 +76,12 @@ class PostController extends ControllerBase {
 
     likes = async () => {
         const postId = this.requireParam('id');
-        const result = await PostService.getLikes(postId);
-        return this.success(result);
+        return this.success(await PostService.getLikes(postId));
     };
 
     interactions = async () => {
         const postId = this.requireParam('id');
-        const result = await PostService.getInteractions(postId);
-        return this.success(result);
+        return this.success(await PostService.getInteractions(postId));
     };
 
     feed = async () => {
@@ -121,15 +121,12 @@ class PostController extends ControllerBase {
         const name = this.requireParam('name');
         const options = this.getQueryFilters();
 
-        const result = await PostService.getPostsByTag(name, options);
-        return this.success(result);
+        return this.success(await PostService.getPostsByTag(name, options));
     };
 
     trendingTags = async () => {
         const options = this.getQueryFilters();
-        const result = await PostService.getTrendingTags(options);
-
-        return this.success(result);
+        return this.success(await PostService.getTrendingTags(options));
     };
 }
 

@@ -1,13 +1,27 @@
 import { BaseService } from '@bases/service.base.js';
 import { Database } from '@database/index.js';
 import { ProcessedQueryFilters } from '@rules/api-query.type.js';
+import { ValidationError } from '@errors';
+import mongoose from 'mongoose';
 
 class UserService extends BaseService {
     async getProfileById(userId: string, viewerId?: string) {
+        if (!userId) {
+            throw new ValidationError('User id is required');
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            throw new ValidationError('Invalid user id format');
+        }
+
         return this.buildProfile({ _id: userId }, viewerId);
     }
 
     async getProfileByUsername(username: string, viewerId?: string) {
+        if (!username) {
+            throw new ValidationError('Username is required');
+        }
+
         return this.buildProfile({ username }, viewerId);
     }
 
@@ -17,20 +31,25 @@ class UserService extends BaseService {
         const followRepo = Database.repository('main', 'follow');
 
         const user = await userRepo.getOne({ ...where, status: 1 });
-        if (!user) return null;
+
+        if (!user) {
+            throw new ValidationError('User not found');
+        }
+
+        const userId = user._id.toString();
 
         const [posts, followers, following] = await Promise.all([
-            postRepo.count({ user: user._id.toString(), status: 1 }),
-            followRepo.count({ target: user._id.toString(), targetType: 'user', status: 1 }),
-            followRepo.count({ follower: user._id.toString(), targetType: 'user', status: 1 }),
+            postRepo.count({ user: userId, status: 1 }),
+            followRepo.count({ target: userId, targetType: 'user', status: 1 }),
+            followRepo.count({ follower: userId, targetType: 'user', status: 1 }),
         ]);
 
         let isFollowing = false;
 
-        if (viewerId) {
+        if (viewerId && mongoose.Types.ObjectId.isValid(viewerId)) {
             const exists = await followRepo.getOne({
                 follower: viewerId,
-                target: user._id.toString(),
+                target: userId,
                 targetType: 'user',
                 status: 1,
             });
@@ -45,18 +64,33 @@ class UserService extends BaseService {
     }
 
     async updateProfile(userId: string, data: any) {
+        if (!userId) throw new ValidationError('User id is required');
+
         const allowed = ['name', 'bio', 'avatarUrl'];
         const payload = this.sanitizeData(data, allowed);
 
-        return Database.repository('main', 'user').update(userId, payload);
+        const updated = await Database.repository('main', 'user').update(userId, payload);
+
+        if (!updated) throw new ValidationError('User not found');
+
+        return updated;
     }
 
     async deactivate(userId: string) {
-        return Database.repository('main', 'user').update(userId, { status: 0 });
+        if (!userId) throw new ValidationError('User id is required');
+
+        const updated = await Database.repository('main', 'user').update(userId, { status: 0 });
+
+        if (!updated) throw new ValidationError('User not found');
+
+        return updated;
     }
 
-    // 🔽 existentes
+    /* ===== existentes ===== */
+
     async getFollowing(userId: string, options: ProcessedQueryFilters) {
+        if (!userId) throw new ValidationError('User id is required');
+
         const followRepo = Database.repository('main', 'follow');
 
         return followRepo.getAllActive(options, {
@@ -67,6 +101,8 @@ class UserService extends BaseService {
     }
 
     async getFollowers(userId: string, options: ProcessedQueryFilters) {
+        if (!userId) throw new ValidationError('User id is required');
+
         const followRepo = Database.repository('main', 'follow');
 
         return followRepo.getAllActive(options, {
@@ -77,14 +113,17 @@ class UserService extends BaseService {
     }
 
     async updateAvatar(userId: string, file: Express.Multer.File) {
+        if (!userId) throw new ValidationError('User id is required');
+        if (!file) throw new ValidationError('Avatar file is required');
+
         const avatarUrl = `/uploads/avatars/${file.filename}`;
 
-        return Database.repository('main', 'user').update(userId, {
-            avatarUrl,
-        });
+        return Database.repository('main', 'user').update(userId, { avatarUrl });
     }
 
     async getUserPosts(userId: string, options: ProcessedQueryFilters) {
+        if (!userId) throw new ValidationError('User id is required');
+
         const postRepo = Database.repository('main', 'post');
 
         return postRepo.getAllActive(options, {
@@ -95,6 +134,8 @@ class UserService extends BaseService {
     }
 
     async getUserReposts(userId: string, options: ProcessedQueryFilters) {
+        if (!userId) throw new ValidationError('User id is required');
+
         const postRepo = Database.repository('main', 'post');
 
         return postRepo.getAllActive(options, {
@@ -105,6 +146,8 @@ class UserService extends BaseService {
     }
 
     async getUserFavorites(userId: string, options: ProcessedQueryFilters) {
+        if (!userId) throw new ValidationError('User id is required');
+
         const favoriteRepo = Database.repository('main', 'favorite');
 
         return favoriteRepo.getAllActive(options, {

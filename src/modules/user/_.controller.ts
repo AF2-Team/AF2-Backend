@@ -24,6 +24,16 @@ class UserController extends ControllerBase {
         this.success(result);
     };
 
+    getMe = async (req: Request, _res: Response) => {
+       
+        const userId = (req as any).user._id.toString();
+        
+        if (!userId) throw new ValidationError('Invalidad session data');
+        
+        const result = await UserService.getProfileById(userId, userId);
+        this.success(result);
+    };
+
     updateMe = async (req: Request, _res: Response) => {
         const userId = (req as any).user._id.toString();
 

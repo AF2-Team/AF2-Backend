@@ -16,7 +16,8 @@ export class QueryBuilder {
      */
     static buildFromQuery(query: Record<string, any>): ProcessedQueryFilters {
         // Extraer parámetros con desestructuración segura
-        const { page: qPage = this.DEFAULT_PAGE, limit: qLimit = this.DEFAULT_LIMIT, ...restQuery } = query;
+        const safeQuery= query || {};
+        const { page: qPage = this.DEFAULT_PAGE, limit: qLimit = this.DEFAULT_LIMIT, ...restQuery } = safeQuery;
 
         // 1. Procesar paginación
         const page = this.safeNumber(qPage, this.DEFAULT_PAGE);

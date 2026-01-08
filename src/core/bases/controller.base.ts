@@ -187,6 +187,13 @@ export abstract class ControllerBase {
         this.success(data, message, 201);
     }
 
+    /**
+     * Envía respuesta 204 (No Content)
+     */
+    protected noContent(message: string = 'No content'): void {
+        this.success(null, message, 204);
+    }
+
     protected getQueryFilters(): ProcessedQueryFilters {
         return (
             this.queryFilters ?? {
@@ -196,6 +203,27 @@ export abstract class ControllerBase {
                 raw: {},
             }
         );
+    }
+
+    /**
+     * Obtiene parámetros de la ruta
+     */
+    protected getParams(): Record<string, any> {
+        return this.getRequest().params;
+    }
+
+    /**
+     * Obtiene parámetros de query
+     */
+    protected getQuery(): Record<string, any> {
+        return this.getRequest().query;
+    }
+
+    /**
+     * Obtiene el cuerpo de la solicitud
+     */
+    protected getBody<T = any>(): T {
+        return this.getRequest().body;
     }
 
     protected getRequest(): Request {
@@ -209,5 +237,31 @@ export abstract class ControllerBase {
 
     protected throwValidationError(message: string, details: any = {}): never {
         throw new ValidationError(message, details);
+    }
+
+    /**
+     * Valida que exista un parámetro requerido
+     */
+    protected requireParam(paramName: string): any {
+        const value = this.getRequest().params[paramName];
+        if (value === undefined || value === null || value === '') {
+            this.throwValidationError(`Parameter '${paramName}' is required`, {
+                parameter: paramName,
+            });
+        }
+        return value;
+    }
+
+    /**
+     * Valida que exista un campo en el body requerido
+     */
+    protected requireBodyField(fieldName: string): any {
+        const value = this.getRequest().body[fieldName];
+        if (value === undefined || value === null || value === '') {
+            this.throwValidationError(`Field '${fieldName}' is required`, {
+                field: fieldName,
+            });
+        }
+        return value;
     }
 }

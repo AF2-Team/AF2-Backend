@@ -1,21 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 import { JWTUtil } from '@utils/jwt.util.js';
+import { AuthError } from '@errors/auth.error.js';
 
 export class AuthMiddleware {
     static authenticate(req: Request, res: Response, next: NextFunction): void {
         try {
             const authHeader = req.header('Authorization');
 
-            if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                throw new Error('No token provided');
-            }
+            if (!authHeader || !authHeader.startsWith('Bearer ')) throw new AuthError('No token provided');
 
             const token = authHeader.replace('Bearer ', '');
             const decoded = JWTUtil.verifyToken(token);
 
-            if (!decoded || !decoded.userId) {
-                throw new Error('Invalid token');
-            }
+            if (!decoded || !decoded.userId) throw new AuthError('Invalid token');
 
             (req as any).user = {
                 _id: decoded.userId,

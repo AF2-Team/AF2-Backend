@@ -3,9 +3,11 @@ import { QueryBuilder } from '@utils/query-builder.js';
 import { ApiResponse } from '@rules/api-response.type.js';
 import { PaginationMetadata, ProcessedQueryFilters } from '@rules/api-query.type.js';
 import { AppError, ValidationError, UnknownError, ProblematicResponseError } from '@errors';
+import { Validator } from '@utils/validator.util.js';
 
 export abstract class ControllerBase {
     protected controllerName: string;
+    private readonly baseMethods = new Set<string | symbol>();
 
     private currentRequest: Request | null = null;
     private currentResponse: Response | null = null;
@@ -15,7 +17,42 @@ export abstract class ControllerBase {
 
     constructor() {
         this.controllerName = this.constructor.name;
+        this.identifyBaseMethods();
         return this.createControllerProxy();
+    }
+
+    private identifyBaseMethods(): void {
+        // 1. Obtener el prototipo actual de esta instancia
+        const basePrototype = Object.getPrototypeOf(this);
+
+        // 2. Comenzar a recorrer la cadena de prototipos
+        let currentPrototype = basePrototype;
+
+        while (currentPrototype && currentPrototype !== Object.prototype) {
+            // 3. Obtener todas las propiedades del prototipo actual
+            const propertyNames = Object.getOwnPropertyNames(currentPrototype);
+
+            // 4. Analizar cada propiedad
+            for (const prop of propertyNames) {
+                // Solo consideramos funciones que no sean el constructor
+                if (prop !== 'constructor' && typeof (currentPrototype as any)[prop] === 'function') {
+                    // 5. Verificar si estamos en ControllerBase o sus ancestros
+                    if (
+                        currentPrototype === ControllerBase.prototype ||
+                        currentPrototype.constructor.name === 'ControllerBase'
+                    ) {
+                        // Este método pertenece a ControllerBase
+                        this.baseMethods.add(prop);
+                    }
+                }
+            }
+
+            // 6. Si llegamos a ControllerBase, detenemos el recorrido
+            if (currentPrototype === ControllerBase.prototype) break;
+
+            // 7. Subir al siguiente prototipo en la cadena
+            currentPrototype = Object.getPrototypeOf(currentPrototype);
+        }
     }
 
     private createControllerProxy(): this {
@@ -26,7 +63,9 @@ export abstract class ControllerBase {
                 if (
                     typeof originalMethod === 'function' &&
                     prop !== 'constructor' &&
-                    !prop.toString().startsWith('_')
+                    !prop.toString().startsWith('_') &&
+                    // No envolver métodos de la clase base
+                    !this.baseMethods.has(prop)
                 ) {
                     return async (...args: any[]) => {
                         const boundMethod = () => originalMethod.apply(target, args);
@@ -63,7 +102,6 @@ export abstract class ControllerBase {
         }
     }
 
-    // FIX 1: blindar contexto
     private setupExecutionContext(req: any, res: any, next: any): void {
         this.requestStartTime = Date.now();
 
@@ -90,7 +128,6 @@ export abstract class ControllerBase {
         if (result !== undefined && !this.isStreamResponse(result)) {
             this.sendAutoResponse(result);
         } else {
-            // FIX 2: no forzar error si no hay response válida
             this.sendErrorResponse(new ProblematicResponseError());
         }
     }
@@ -143,19 +180,13 @@ export abstract class ControllerBase {
         this.sendErrorResponse(normalized);
     }
 
-    // FIX 3: validar Response antes de usar `.status`
     private sendErrorResponse(error: AppError): void {
         if (
             !this.currentResponse ||
             typeof this.currentResponse.status !== 'function' ||
             this.currentResponse.headersSent
-        ) {
-            console.error('[ControllerBase] Cannot send error response', {
-                controller: this.controllerName,
-                error: error.message,
-            });
+        )
             return;
-        }
 
         this.currentResponse.status(error.statusCode).json(error.toJSON());
     }
@@ -167,10 +198,6 @@ export abstract class ControllerBase {
         this.queryFilters = null;
         this.requestStartTime = 0;
     }
-
-    /* ======================
-       Helpers públicos
-    ====================== */
 
     protected success<T = any>(data: T, message = 'Success', statusCode = 200, metadata?: PaginationMetadata): void {
         if (!this.currentResponse || this.currentResponse.headersSent) return;
@@ -235,33 +262,30 @@ export abstract class ControllerBase {
         return (this.getRequest() as any).user || null;
     }
 
-    protected throwValidationError(message: string, details: any = {}): never {
-        throw new ValidationError(message, details);
-    }
-
     /**
      * Valida que exista un parámetro requerido
      */
     protected requireParam(paramName: string): any {
-        const value = this.getRequest().params[paramName];
-        if (value === undefined || value === null || value === '') {
-            this.throwValidationError(`Parameter '${paramName}' is required`, {
-                parameter: paramName,
-            });
-        }
+        const value = Validator.requireArg(this.getRequest().params, paramName);
+
         return value;
+    }
+
+    /**
+     * Valida que exista un query parameter requerido
+     */
+    protected requireQuery(paramName: string): any {
+        const value = Validator.requireArg(this.getRequest().query, paramName);
+
+        return QueryBuilder.parseValue(value);
     }
 
     /**
      * Valida que exista un campo en el body requerido
      */
     protected requireBodyField(fieldName: string): any {
-        const value = this.getRequest().body[fieldName];
-        if (value === undefined || value === null || value === '') {
-            this.throwValidationError(`Field '${fieldName}' is required`, {
-                field: fieldName,
-            });
-        }
+        const value = Validator.requireArg(this.getRequest().body, fieldName);
+
         return value;
     }
 }

@@ -1,4 +1,5 @@
 import { AppConfig } from '@config/app.config.js';
+import { Logger } from '@utils/logger.js';
 import { nanoid } from 'nanoid';
 
 export interface AppErrorOptions {
@@ -43,6 +44,8 @@ export class AppError extends Error {
     }
 
     private logError(): void {
+        Logger.error(this.message, this);
+        /*
         const colors = {
             red: '\x1b[31m',
             yellow: '\x1b[33m',
@@ -70,7 +73,7 @@ export class AppError extends Error {
         if (this.originalError)
             console.log(`${colors.yellow}Original Error:${colors.reset} ${this.originalError.message}`);
 
-        console.log(`${colors.red}══════════════════════════════════════${colors.reset}\n`);
+        console.log(`${colors.red}══════════════════════════════════════${colors.reset}\n`);*/
     }
 
     public toJSON() {

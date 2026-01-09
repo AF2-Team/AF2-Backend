@@ -27,12 +27,13 @@ class PostService extends BaseService {
             for (const raw of extracted) {
                 const normalized = normalizeHashtag(raw);
 
-                let tag = await tagRepo.getOne({ name: normalized });
+                //let tag = await tagRepo.getOne({ name: normalized });
+                let tag = await tagRepo.getOne({ normalized: normalized });
 
                 if (!tag) {
                     tag = await tagRepo.create({
-                        name: normalized,
-                        original: raw,
+                        name: raw,
+                        normalized: normalized,
                         postsCount: 1,
                         status: 1,
                     });
@@ -124,7 +125,12 @@ class PostService extends BaseService {
         const postRepo = Database.repository('main', 'post');
 
         const post = await postRepo.getById(postId);
-        if (!post || post.user !== userId) {
+        
+        if (!post) {
+            throw new ValidationError('Post not found');
+        }
+
+        if (post.user.toString() !== userId.toString()) {
             throw new ValidationError('Unauthorized');
         }
 

@@ -7,6 +7,9 @@ export abstract class BaseService {
         this.serviceName = this.constructor.name;
     }
 
+    /**
+     * Valida los campos 
+     */
     protected validateRequired(data: Record<string, unknown>, requiredFields: string[]): void {
         const missingFields = requiredFields.filter(
             (field) => data[field] === undefined || data[field] === null || data[field] === '',

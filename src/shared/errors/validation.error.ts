@@ -3,7 +3,7 @@ import { AppError, AppErrorOptions } from '@errors/app.error.js';
 export class ValidationError extends AppError {
     constructor(
         message: string = 'Validation failed',
-        validationErrors?: Record<string, string[]> | string[],
+        validationErrors?: Record<string, unknown> | string[],
         options: Partial<AppErrorOptions> = {},
     ) {
         const data = {

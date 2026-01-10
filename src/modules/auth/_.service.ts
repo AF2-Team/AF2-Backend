@@ -82,9 +82,7 @@ class AuthService extends BaseService {
         this.validateRequired(data, ['email']);
 
         const user = await UserRepository.findByEmail(email);
-        if (!user) {
-            throw new ValidationError('If an account exists, an email was sent');
-        }
+        if (!user) throw new ValidationError('If an account exists, an email was sent');
 
         const token = crypto.randomBytes(32).toString('hex');
 
@@ -112,9 +110,7 @@ class AuthService extends BaseService {
             resetPasswordExpires: { $gt: new Date() },
         });
 
-        if (!user) {
-            throw new ValidationError('Invalid or expired token');
-        }
+        if (!user) throw new ValidationError('Invalid or expired token');
 
         await UserRepository.update(user._id.toString(), {
             password: await BcryptUtil.hash(password),

@@ -1,3 +1,5 @@
+import { ValidationError } from '@errors/validation.error.js';
+
 export class Validator {
     static isEmail(email: string): boolean {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -70,22 +72,11 @@ export class Validator {
         return phoneRegex.test(value.replace(/\s/g, ''));
     }
 
-    static validateObject(obj: any, rules: Record<string, (value: any) => boolean>): string[] {
-        const errors: string[] = [];
-
-        Object.entries(rules).forEach(([field, validator]) => {
-            if (!validator(obj[field])) errors.push(`Invalid value for ${field}`);
-        });
-
-        return errors;
-    }
-
     static sanitizeString(value: string): string {
         return value
             .trim()
             .replace(/[<>]/g, '') // Eliminar caracteres peligrosos
-            .replace(/\s+/g, ' ') // Normalizar espacios
-            .substring(0, 1000); // Limitar longitud
+            .replace(/\s+/g, ' '); // Normalizar espacios
     }
 
     static sanitizeObject(obj: Record<string, unknown>, allowedFields: string[]): Record<string, unknown> {
@@ -99,5 +90,28 @@ export class Validator {
         });
 
         return sanitized;
+    }
+
+    static validateObject(obj: any, rules: Record<string, (value: any) => boolean>): string[] {
+        const errors: string[] = [];
+
+        Object.entries(rules).forEach(([field, validator]) => {
+            if (!validator(obj[field])) errors.push(`Invalid value for ${field}`);
+        });
+
+        return errors;
+    }
+
+    static requireArg(
+        obj: Record<string, unknown>,
+        requiredArg: string,
+        alarm: boolean = true,
+    ): unknown | boolean | void {
+        const value = obj[requiredArg];
+
+        if (value !== undefined && value !== null) return value;
+        if (alarm) throw new ValidationError(`Argument '${requiredArg}' is required`, { argument: requiredArg });
+
+        return false;
     }
 }

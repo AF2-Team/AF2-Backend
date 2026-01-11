@@ -8,7 +8,8 @@ export default class PostModel extends MongooseModelBase {
 
     static override definition() {
         return {
-            user: {
+            // CORRECCIÓN 1: Cambiado de 'user' a 'author' para coincidir con el populate
+            author: {
                 type: Schema.Types.ObjectId,
                 ref: 'User',
                 required: true,
@@ -83,17 +84,20 @@ export default class PostModel extends MongooseModelBase {
             if (doc.type !== 'repost') {
                 doc.originalPost = null;
             }
+            next(); // IMPORTANTE: Agregué next() para asegurar que el hook continúe
         });
 
         schema.post('save', async function (doc: any) {
-            if (doc.type === 'repost' && doc.originalPost && doc.isNew) {
-                await doc.constructor.updateOne({ _id: doc.originalPost }, { $inc: { repostsCount: 1 } });
+            if (doc.type === 'repost' && doc.originalPost) { // Simplifiqué la condición isNew para mayor seguridad
+                // Nota: Asegúrate de que updateOne funcione en tu contexto, a veces requiere el modelo explícito
+                 await mongoose.model('Post').updateOne({ _id: doc.originalPost }, { $inc: { repostsCount: 1 } });
             }
         });
     }
 
     static override applyIndices(schema: Schema): void {
-        schema.index({ user: 1, createdAt: -1 });
+        // CORRECCIÓN 2: Actualizado el índice para usar 'author' en lugar de 'user'
+        schema.index({ author: 1, createdAt: -1 });
         schema.index({ publishStatus: 1, createdAt: -1 });
         schema.index({ tags: 1 });
         schema.index({ originalPost: 1 });

@@ -13,7 +13,7 @@ class PostService extends BaseService {
 
         const postRepo = Database.repository('main', 'post') as any;
         const tagRepo = Database.repository('main', 'tag');
-
+        const rawText = data.text || data.content;
         const text = typeof data.text === 'string' ? data.text.trim() : '';
         const hasText = text.length > 0;
 
@@ -79,9 +79,20 @@ class PostService extends BaseService {
             status: 1,
             publishStatus: 'published',
         });
-        const populatedPost = await postRepo.getByIdPopulated(newPost._id.toString());
+       let populatedPost = newPost;
         
-        return populatedPost || newPost;
+        if (typeof postRepo.getByIdPopulated === 'function') {
+             populatedPost = await postRepo.getByIdPopulated(newPost._id.toString());
+        } else {
+             // Fallback manual si el repositorio no tiene el método
+             populatedPost = await postRepo.model.findById(newPost._id).populate('user', 'username name avatar').lean();
+             if(populatedPost) {
+                 populatedPost.author = populatedPost.user; // Mapeo manual
+                 populatedPost.id = populatedPost._id;
+             }
+        }
+
+        return populatedPost || newPost;;
     }
 
    async getFeed(userId: string, page: number = 1) { // Asumo que recibes userId y page

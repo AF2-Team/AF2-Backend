@@ -46,7 +46,9 @@ export default class PostModel extends MongooseModelBase {
                     fileId: String,
                 }
             ], 
-
+             
+            mediaUrl: { type: String },
+            mediaId: { type: String },
             tags: [
                 {
                     type: String,

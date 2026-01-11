@@ -3,13 +3,15 @@ import { Database } from '@database/index.js';
 import { extractHashtags, normalizeHashtag } from '@utils/hashtags.util.js';
 import { ValidationError } from '@errors';
 import TagRepository from '@database/repositories/main/tag.repository.js';
+import PostRepository from '@database/repositories/main/post.repository.js';
 import { ImageKitService } from '@providers/imagekit.provider.js';
+
 
 class PostService extends BaseService {
     async createPost(data: any, files?: Express.Multer.File[]) {
         this.validateRequired(data, ['user']);
 
-        const postRepo = Database.repository('main', 'post');
+        const postRepo = Database.repository('main', 'post') as any;
         const tagRepo = Database.repository('main', 'tag');
 
         const text = typeof data.text === 'string' ? data.text.trim() : '';
@@ -65,18 +67,21 @@ class PostService extends BaseService {
             }
         }
 
-        return postRepo.create({
+       const newPost = await postRepo.create({
             user: data.user,
             text: hasText ? text : null,
             fontStyle: data.fontStyle,
-            media: mediaList, // Nuevo campo array
-            mediaUrl: hasMedia ? mediaList[0].url : null, // Mantener compatibilidad (primera imagen)
-            mediaId: hasMedia ? mediaList[0].fileId : null, // Mantener compatibilidad
+            media: mediaList,
+            mediaUrl: hasMedia ? mediaList[0].url : null,
+            mediaId: hasMedia ? mediaList[0].fileId : null,
             tags: normalizedTags,
             type: 'post',
             status: 1,
             publishStatus: 'published',
         });
+        const populatedPost = await postRepo.getByIdPopulated(newPost._id.toString());
+        
+        return populatedPost || newPost;
     }
 
    async getFeed(userId: string, page: number = 1) { // Asumo que recibes userId y page

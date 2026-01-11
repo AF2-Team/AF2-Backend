@@ -19,7 +19,7 @@ async getByIdPopulated(id: string) {
         // Mapeo crucial para tu frontend
         return {
             ...post,
-            user: post.user, 
+            author: post.user, 
             id: post._id
         };
     }

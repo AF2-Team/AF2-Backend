@@ -138,6 +138,23 @@ class PostRepository extends MongooseRepositoryBase<typeof PostModel> {
             return this.model.aggregate(pipeline).exec();
         });
     }
+    async getAllActive(page: number = 1, limit: number = 10) {
+        // Calculamos cuántos saltar para la paginación
+        const skip = (page - 1) * limit;
+
+        // Usamos 'find' (asumiendo que heredas de un repositorio base de Mongoose)
+        // Ajusta 'isActive: true' si tu modelo usa otro campo (ej: deletedAt: null)
+        const posts = await this.model
+            .find({ isActive: true }) 
+            .sort({ createdAt: -1 }) // Ordenar: Más nuevos primero
+            .skip(skip)
+            .limit(limit)
+            .populate('author', 'username name avatar') // ¡IMPORTANTE! Traer datos del autor
+            .lean() // Para que sea JSON puro y rápido
+            .exec();
+
+        return posts;
+    }
 }
 
 export default new PostRepository();

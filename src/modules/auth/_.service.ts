@@ -101,7 +101,7 @@ class AuthService extends BaseService {
 
         if (!BcryptUtil.validatePasswordStrength(password)) {
             throw new ValidationError('Weak password', [
-                'Password must be at least 8 characters and contain letters and numbers',
+                'Password must be at least 8 characters and contain letters, numbers, and special characters',
             ]);
         }
 

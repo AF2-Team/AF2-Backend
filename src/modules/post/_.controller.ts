@@ -95,8 +95,14 @@ class PostController extends ControllerBase {
     };
 
     feed = async () => {
-        const options = this.getQueryFilters();
-        return this.success(await PostService.getFeed(options));
+        const filters = this.getQueryFilters();
+        const page = Number(filters.raw.page) || 1;
+        
+        // Obtenemos el userId si existe en los parámetros de la ruta
+        // Si no existe (feed general), pasamos un string vacío
+        const userId = this.getParams().userId || '';
+
+        return this.success(await PostService.getFeed(userId, page));
     };
 
     combinedFeed = async () => {

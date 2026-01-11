@@ -85,7 +85,7 @@ class PostService extends BaseService {
         // ⚠️ CORRECCIÓN: Pasamos un objeto 'options' en vez de argumentos sueltos
         const posts = await postRepo.getAllActive(
             { page: page, limit: 20 }, // Primer argumento: opciones de paginación
-            {}                         // Segundo argumento: filtros (vacío para traer todo)
+            { publishStatus: 'published' }                         // Segundo argumento: filtros (vacío para traer todo)
         );
 
         return posts;

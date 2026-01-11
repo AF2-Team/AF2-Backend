@@ -147,7 +147,7 @@ class PostRepository extends MongooseRepositoryBase<typeof PostModel> {
         // 2. Construir la Query
         // Combinamos "isActive: true" (o tu lógica de borrado) con el filtro que envía el servicio
         const query = {
-            isActive: true, // Asegura que no estén borrados
+            status: 1, // Asegura que no estén borrados
             ...filter       // Agrega { publishStatus: 'published' }
         };
 

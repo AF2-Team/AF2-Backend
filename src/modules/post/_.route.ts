@@ -15,12 +15,17 @@ router.get('/tags/:name', PostController.tagInfo);
 router.get('/user/:userId', PostController.byUser);
 router.get('/tag/:tag', PostController.byTag);
 
-router.post('/', AuthMiddleware.authenticate, PostController.create);
+router.post('/', AuthMiddleware.authenticate, UploadMiddleware.memory.array('media', 3), PostController.create);
 router.get('/:id', PostController.getById);
 router.put('/:id', AuthMiddleware.authenticate, PostController.update);
 router.delete('/:id', AuthMiddleware.authenticate, PostController.delete);
 
-router.post('/:id/media', AuthMiddleware.authenticate, UploadMiddleware.single('media'), PostController.uploadMedia);
+router.post(
+    '/:id/media',
+    AuthMiddleware.authenticate,
+    UploadMiddleware.memory.single('media'),
+    PostController.uploadMedia,
+);
 
 router.post('/:id/repost', AuthMiddleware.authenticate, PostController.repost);
 router.get('/:id/reposts', PostController.reposts);

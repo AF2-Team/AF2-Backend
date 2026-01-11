@@ -161,7 +161,11 @@ class PostRepository extends MongooseRepositoryBase<typeof PostModel> {
             .lean() // Convierte a JSON simple (más rápido)
             .exec();
 
-        return posts;
+        return posts.map((post: any) => ({
+            ...post,
+            author: post.user, // Duplicamos user dentro de author
+            id: post._id       // Opcional: facilitamos el id si hiciera falta
+        }));
     }
 }
 

@@ -66,7 +66,7 @@ class PostService extends BaseService {
         }
 
         return postRepo.create({
-            user: data.user,
+            author: data.user,
             text: hasText ? text : null,
             fontStyle: data.fontStyle,
             media: mediaList, // Nuevo campo array
@@ -94,7 +94,7 @@ class PostService extends BaseService {
     async getByUser(userId: string, options: any) {
         const postRepo = Database.repository('main', 'post');
         return postRepo.getAllActive(options, {
-            user: userId,
+            author: userId,
             publishStatus: 'published',
         });
     }
@@ -119,7 +119,7 @@ class PostService extends BaseService {
         const postRepo = Database.repository('main', 'post');
 
         return postRepo.create({
-            user: userId,
+            author: userId,
             type: 'repost',
             originalPost: originalPostId,
             status: 1,
@@ -136,7 +136,7 @@ class PostService extends BaseService {
         const postRepo = Database.repository('main', 'post');
 
         const post = await postRepo.getById(postId);
-        if (!post || post.user !== userId) {
+        if (!post || post.author !== userId) {
             throw new ValidationError('Unauthorized');
         }
 
@@ -155,7 +155,7 @@ class PostService extends BaseService {
             throw new ValidationError('Post not found');
         }
 
-        if (post.user.toString() !== userId.toString()) {
+        if (post.author.toString() !== userId.toString()) {
             throw new ValidationError('Unauthorized');
         }
 
@@ -166,7 +166,7 @@ class PostService extends BaseService {
         const postRepo = Database.repository('main', 'post');
 
         const post = await postRepo.getById(postId);
-        if (!post || post.user !== userId) {
+        if (!post || post.author !== userId) {
             throw new ValidationError('Unauthorized');
         }
 

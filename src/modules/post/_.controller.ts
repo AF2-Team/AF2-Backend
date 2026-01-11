@@ -3,18 +3,20 @@ import PostService from './_.service.js';
 
 class PostController extends ControllerBase {
     create = async () => {
+        console.log("📨 [POST] Petición recibida en /api/v1/post");
         const body = this.getBody();
         const user = this.getUser<any>();
         const req = this.getRequest();
 
-        if (!user) this.throwValidationError('User session not found');
+        if (!user){ console.error("❌ [POST] No user session");
+            this.throwValidationError('User session not found');}
 
         const userId = user._id || user.id;
-
+  console.log(`👤 [POST] Usuario detectado: ${userId}`);
         if (!userId) {
             return this.throwValidationError('ID de usuario no disponible en el token');
         }
-
+console.log("📦 [POST] Body recibido:", JSON.stringify(body));
         const result = await PostService.createPost(
             {
                 ...body,
@@ -22,7 +24,7 @@ class PostController extends ControllerBase {
             },
             req.files as Express.Multer.File[],
         );
-
+  console.log("✅ [POST] Post creado exitosamente. ID:", result._id);
         return this.created(result, 'Post created');
     };
 

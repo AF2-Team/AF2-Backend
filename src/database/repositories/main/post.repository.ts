@@ -7,6 +7,23 @@ class PostRepository extends MongooseRepositoryBase<typeof PostModel> {
         super(PostModel);
     }
 
+async getByIdPopulated(id: string) {
+        const post = await this.model
+            .findOne({ _id: id, status: 1 })
+            .populate('user', 'username name avatar') // Trae los datos del usuario
+            .lean()
+            .exec() as any; 
+
+        if (!post) return null;
+
+        // Mapeo crucial para tu frontend
+        return {
+            ...post,
+            user: post.user, 
+            id: post._id
+        };
+    }
+
     async getCombinedFeed(viewerId: string, options: any = {}) {
         return this.execute('getCombinedFeed', async () => {
             const viewerObjectId = new mongoose.Types.ObjectId(viewerId);
@@ -163,7 +180,7 @@ class PostRepository extends MongooseRepositoryBase<typeof PostModel> {
 
         return posts.map((post: any) => ({
             ...post,
-            author: post.user, // Duplicamos user dentro de author
+            user: post.user, // Duplicamos user dentro de author
             id: post._id       // Opcional: facilitamos el id si hiciera falta
         }));
     }

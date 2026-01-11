@@ -8,8 +8,8 @@ export default class PostModel extends MongooseModelBase {
 
     static override definition() {
         return {
-            // CORRECCIÓN 1: Cambiado de 'user' a 'author' para coincidir con el populate
-            author: {
+
+            user: {
                 type: Schema.Types.ObjectId,
                 ref: 'User',
                 required: true,
@@ -106,7 +106,7 @@ export default class PostModel extends MongooseModelBase {
 
     static override applyIndices(schema: Schema): void {
         // CORRECCIÓN 2: Actualizado el índice para usar 'author' en lugar de 'user'
-        schema.index({ author: 1, createdAt: -1 });
+        schema.index({ user: 1, createdAt: -1 });
         schema.index({ publishStatus: 1, createdAt: -1 });
         schema.index({ tags: 1 });
         schema.index({ originalPost: 1 });

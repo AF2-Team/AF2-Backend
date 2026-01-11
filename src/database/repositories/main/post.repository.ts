@@ -157,7 +157,7 @@ class PostRepository extends MongooseRepositoryBase<typeof PostModel> {
             .sort({ createdAt: -1 }) // Ordenar: Más nuevos primero
             .skip(skip)
             .limit(limit)
-            .populate('author', 'username name avatar') // <--- IMPORTANTE: Traer datos del usuario para la App
+            .populate('user', 'username name avatar') // <--- IMPORTANTE: Traer datos del usuario para la App
             .lean() // Convierte a JSON simple (más rápido)
             .exec();
 

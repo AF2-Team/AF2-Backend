@@ -4,14 +4,24 @@ import PostService from './_.service.js';
 class PostController extends ControllerBase {
     create = async () => {
         const body = this.getBody();
-        const user = this.getUser<{ _id: string }>();
+        const user = this.getUser<any>();
+        const req = this.getRequest();
 
-        if (!user) this.throwValidationError('Unauthorized');
+        if (!user) this.throwValidationError('User session not found');
 
-        const result = await PostService.createPost({
-            ...body,
-            user: user._id,
-        });
+        const userId = user._id || user.id;
+
+        if (!userId) {
+            return this.throwValidationError('ID de usuario no disponible en el token');
+        }
+
+        const result = await PostService.createPost(
+            {
+                ...body,
+                user: String(userId),
+            },
+            req.files as Express.Multer.File[],
+        );
 
         return this.created(result, 'Post created');
     };
@@ -42,7 +52,7 @@ class PostController extends ControllerBase {
         if (!user) this.throwValidationError('Unauthorized');
 
         await PostService.deletePost(postId, user._id);
-        return this.noContent('Post deleted');
+        return this.success({ id: postId }, 'Post deleted');
     };
 
     uploadMedia = async () => {

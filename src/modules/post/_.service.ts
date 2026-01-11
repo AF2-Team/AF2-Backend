@@ -3,9 +3,10 @@ import { Database } from '@database/index.js';
 import { extractHashtags, normalizeHashtag } from '@utils/hashtags.util.js';
 import { ValidationError } from '@errors';
 import TagRepository from '@database/repositories/main/tag.repository.js';
+import { ImageKitService } from '@providers/imagekit.provider.js';
 
 class PostService extends BaseService {
-    async createPost(data: any) {
+    async createPost(data: any, files?: Express.Multer.File[]) {
         this.validateRequired(data, ['user']);
 
         const postRepo = Database.repository('main', 'post');
@@ -13,7 +14,24 @@ class PostService extends BaseService {
 
         const text = typeof data.text === 'string' ? data.text.trim() : '';
         const hasText = text.length > 0;
-        const hasMedia = !!data.mediaUrl;
+
+        // Lógica de subida múltiple a ImageKit
+        const mediaList: { url: string; fileId: string }[] = [];
+
+        if (files && Array.isArray(files) && files.length > 0) {
+            const uploadPromises = files.map((file) => ImageKitService.upload(file, 'posts'));
+            const results = await Promise.all(uploadPromises);
+
+            results.forEach((res) => {
+                
+                if (!res.url || !res.fileId) {
+                    throw new ValidationError('Upload Image Error: Respuesta incompleta del proveedor');
+                }
+                mediaList.push({ url: res.url, fileId: res.fileId });
+            });
+        }
+
+        const hasMedia = mediaList.length > 0;
 
         if (!hasText && !hasMedia) {
             throw new ValidationError('Post must contain text or media');
@@ -27,12 +45,13 @@ class PostService extends BaseService {
             for (const raw of extracted) {
                 const normalized = normalizeHashtag(raw);
 
-                let tag = await tagRepo.getOne({ name: normalized });
+                //let tag = await tagRepo.getOne({ name: normalized });
+                let tag = await tagRepo.getOne({ normalized: normalized });
 
                 if (!tag) {
                     tag = await tagRepo.create({
-                        name: normalized,
-                        original: raw,
+                        name: raw,
+                        normalized: normalized,
                         postsCount: 1,
                         status: 1,
                     });
@@ -49,8 +68,10 @@ class PostService extends BaseService {
         return postRepo.create({
             user: data.user,
             text: hasText ? text : null,
-            mediaUrl: hasMedia ? data.mediaUrl : null,
             fontStyle: data.fontStyle,
+            media: mediaList, // Nuevo campo array
+            mediaUrl: hasMedia ? mediaList[0].url : null, // Mantener compatibilidad (primera imagen)
+            mediaId: hasMedia ? mediaList[0].fileId : null, // Mantener compatibilidad
             tags: normalizedTags,
             type: 'post',
             status: 1,
@@ -124,7 +145,12 @@ class PostService extends BaseService {
         const postRepo = Database.repository('main', 'post');
 
         const post = await postRepo.getById(postId);
-        if (!post || post.user !== userId) {
+
+        if (!post) {
+            throw new ValidationError('Post not found');
+        }
+
+        if (post.user.toString() !== userId.toString()) {
             throw new ValidationError('Unauthorized');
         }
 

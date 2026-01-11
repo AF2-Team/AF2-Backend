@@ -263,6 +263,13 @@ export abstract class ControllerBase {
     }
 
     /**
+     * Lanza un error de validación explícito
+     */
+    protected throwValidationError(message: string, details?: any): never {
+        throw new ValidationError(message, details);
+    }
+
+    /**
      * Valida que exista un parámetro requerido
      */
     protected requireParam(paramName: string): any {

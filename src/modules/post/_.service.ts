@@ -84,6 +84,8 @@ class PostService extends BaseService {
         return postRepo.getAllActive(options, {
             publishStatus: 'published',
         });
+        const posts = await postRepo.getAllActive(page, 20); 
+        return posts;
     }
 
     async getByUser(userId: string, options: any) {

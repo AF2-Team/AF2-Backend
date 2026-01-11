@@ -38,6 +38,13 @@ export default class PostModel extends MongooseModelBase {
                 enum: ['regular', 'bold', 'italic', 'mono'],
                 default: 'regular',
             },
+            
+            media: [
+                {
+                    url: String,
+                    fileId: String,
+                }
+            ], 
 
             tags: [
                 {

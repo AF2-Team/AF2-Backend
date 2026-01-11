@@ -180,7 +180,7 @@ async getByIdPopulated(id: string) {
 
         return posts.map((post: any) => ({
             ...post,
-            user: post.user, // Duplicamos user dentro de author
+            author: post.user, // Duplicamos user dentro de author
             id: post._id       // Opcional: facilitamos el id si hiciera falta
         }));
     }

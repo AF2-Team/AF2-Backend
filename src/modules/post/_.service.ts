@@ -79,12 +79,15 @@ class PostService extends BaseService {
         });
     }
 
-    async getFeed(options: any) {
+   async getFeed(userId: string, page: number = 1) { // Asumo que recibes userId y page
         const postRepo = Database.repository('main', 'post');
-        return postRepo.getAllActive(options, {
-            publishStatus: 'published',
-        });
-        const posts = await postRepo.getAllActive(page, 20); 
+
+        // ⚠️ CORRECCIÓN: Pasamos un objeto 'options' en vez de argumentos sueltos
+        const posts = await postRepo.getAllActive(
+            { page: page, limit: 20 }, // Primer argumento: opciones de paginación
+            {}                         // Segundo argumento: filtros (vacío para traer todo)
+        );
+
         return posts;
     }
 

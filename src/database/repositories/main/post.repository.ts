@@ -138,19 +138,27 @@ class PostRepository extends MongooseRepositoryBase<typeof PostModel> {
             return this.model.aggregate(pipeline).exec();
         });
     }
-    async getAllActive(page: number = 1, limit: number = 10) {
-        // Calculamos cuántos saltar para la paginación
+    async getAllActive(options: any = {}, filter: any = {}) {
+        // 1. Extraer paginación (con valores por defecto)
+        const page = Number(options.page) || 1;
+        const limit = Number(options.limit) || 10;
         const skip = (page - 1) * limit;
 
-        // Usamos 'find' (asumiendo que heredas de un repositorio base de Mongoose)
-        // Ajusta 'isActive: true' si tu modelo usa otro campo (ej: deletedAt: null)
+        // 2. Construir la Query
+        // Combinamos "isActive: true" (o tu lógica de borrado) con el filtro que envía el servicio
+        const query = {
+            isActive: true, // Asegura que no estén borrados
+            ...filter       // Agrega { publishStatus: 'published' }
+        };
+
+        // 3. Ejecutar consulta en Mongoose
         const posts = await this.model
-            .find({ isActive: true }) 
+            .find(query)
             .sort({ createdAt: -1 }) // Ordenar: Más nuevos primero
             .skip(skip)
             .limit(limit)
-            .populate('author', 'username name avatar') // ¡IMPORTANTE! Traer datos del autor
-            .lean() // Para que sea JSON puro y rápido
+            .populate('author', 'username name avatar') // <--- IMPORTANTE: Traer datos del usuario para la App
+            .lean() // Convierte a JSON simple (más rápido)
             .exec();
 
         return posts;

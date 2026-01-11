@@ -4,20 +4,24 @@ import PostService from './_.service.js';
 class PostController extends ControllerBase {
     create = async () => {
         const body = this.getBody();
-        const user = this.getUser< any >();
-        
+        const user = this.getUser<any>();
+        const req = this.getRequest();
+
         if (!user) this.throwValidationError('User session not found');
-        
+
         const userId = user._id || user.id;
 
         if (!userId) {
-        return this.throwValidationError('ID de usuario no disponible en el token');
+            return this.throwValidationError('ID de usuario no disponible en el token');
         }
 
-        const result = await PostService.createPost({
-            ...body,
-            user: String(userId),
-        });
+        const result = await PostService.createPost(
+            {
+                ...body,
+                user: String(userId),
+            },
+            req.files as Express.Multer.File[],
+        );
 
         return this.created(result, 'Post created');
     };

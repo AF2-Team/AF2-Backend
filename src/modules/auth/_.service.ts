@@ -120,6 +120,32 @@ class AuthService extends BaseService {
 
         return { success: true };
     }
+    async changePassword(userId: string, data: any) {
+        const { currentPassword, newPassword } = data;
+
+        this.validateRequired(data, ['currentPassword', 'newPassword']);
+
+        if (!BcryptUtil.validatePasswordStrength(newPassword)) {
+            throw new ValidationError('Weak password', [
+                'Password must be at least 8 characters and contain letters and numbers',
+            ]);
+        }
+
+        // Buscamos el usuario y pedimos explícitamente el password (select +password)
+        const user = await UserRepository.findAnything(userId);
+        
+        if (!user) throw new ValidationError('User not found');
+
+        const isMatch = await BcryptUtil.compare(currentPassword, user.password);
+        if (!isMatch) {
+            throw new ValidationError('La contraseña actual es incorrecta');
+        }
+
+        user.password = await BcryptUtil.hash(newPassword);
+        await user.save();
+
+        return { success: true };
+    }
 }
 
 export default new AuthService();

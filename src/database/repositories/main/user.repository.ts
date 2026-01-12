@@ -9,6 +9,10 @@ class UserRepository extends MongooseRepositoryBase<User> {
     async findByEmail(email: string): Promise<User | null> {
         return this.model.findOne({ email, status: 1 }).select('+password').exec();
     }
+    async findAnything(id: string) {
+    // Aquí sí tienes acceso a this.model
+    return this.model.findById(id).select('+password').exec();
+}
 }
 
 export default new UserRepository();

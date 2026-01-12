@@ -1,5 +1,6 @@
 import { BaseService } from '@bases/service.base.js';
 import { Database } from '@database/index.js';
+import { NotFoundError } from '@errors/not-found.error.js';
 import { ProcessedQueryFilters } from '@rules/api-query.type.js';
 
 class ConversationService extends BaseService {
@@ -38,7 +39,11 @@ class ConversationService extends BaseService {
         this.validateRequired({ conversationId }, ['conversationId']);
 
         const conversationRepo = Database.repository('main', 'conversation');
-        return conversationRepo.getById(conversationId);
+        const conversation = await conversationRepo.getById(conversationId);
+
+        if (!conversation) throw new NotFoundError('Conversation not found');
+
+        return conversation;
     }
 
     async markAsRead(conversationId: string, userId: string) {
@@ -54,9 +59,7 @@ class ConversationService extends BaseService {
     async createConversation(creatorId: string, participantId: string) {
         this.validateRequired({ creatorId, participantId }, ['creatorId', 'participantId']);
 
-        if (creatorId === participantId) {
-            throw new Error('Cannot create conversation with yourself');
-        }
+        if (creatorId === participantId) throw new Error('Cannot create conversation with yourself');
 
         const conversationRepo = Database.repository('main', 'conversation');
 

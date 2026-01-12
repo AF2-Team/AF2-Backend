@@ -17,6 +17,16 @@ class FollowRepository extends MongooseRepositoryBase<typeof FollowModel> {
         });
     }
 
+    async findRelationship(followerId: string, targetId: string, targetModel: FollowTargetType) {
+        return this.model
+            .findOne({
+                follower: followerId,
+                target: targetId,
+                targetModel,
+            })
+            .exec();
+    }
+
     async exists(followerId: string, targetId: string, targetModel: FollowTargetType): Promise<boolean> {
         const result = await this.model.exists({
             follower: followerId,
@@ -36,6 +46,10 @@ class FollowRepository extends MongooseRepositoryBase<typeof FollowModel> {
         });
 
         return (result.deletedCount ?? 0) > 0;
+    }
+
+    async reactivate(id: string) {
+        return this.model.findByIdAndUpdate(id, { status: 1 }, { new: true }).exec();
     }
 
     async getFollowingUsers(userId: string, options: any = {}) {

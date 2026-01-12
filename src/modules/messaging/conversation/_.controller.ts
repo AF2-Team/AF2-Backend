@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import ConversationService from './_.service.js';
 
 class ConversationController extends ControllerBase {
-    async list(_req: Request, _res: Response) {
+    async list(req: Request, res: Response) {
         const user = this.getUser<{ userId: string }>();
         const options = this.getQueryFilters();
         const result = await ConversationService.getUserConversations(user?.userId as string, options);
@@ -11,14 +11,14 @@ class ConversationController extends ControllerBase {
         this.success(result);
     }
 
-    async get(_req: Request, _res: Response) {
+    async get(req: Request, res: Response) {
         const { conversationId } = this.getParams();
         const result = await ConversationService.getConversation(conversationId);
 
         this.success(result);
     }
 
-    async markRead(_req: Request, _res: Response) {
+    async markRead(req: Request, res: Response) {
         const { conversationId } = this.getParams();
         const user = this.getUser<{ userId: string }>();
         const result = await ConversationService.markAsRead(conversationId, user?.userId as string);

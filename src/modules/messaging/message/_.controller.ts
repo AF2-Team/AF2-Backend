@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import MessageService from './_.service.js';
 
 class MessageController extends ControllerBase {
-    async send(req: Request, _res: Response) {
+    async send(req: Request, res: Response) {
         const user = this.getUser<{ userId: string }>();
         const conversationId = this.requireParam('conversationId');
         const text = this.requireBodyField('text');
@@ -12,7 +12,7 @@ class MessageController extends ControllerBase {
         return this.created(result, 'Message sent');
     }
 
-    async list(req: Request, _res: Response) {
+    async list(req: Request, res: Response) {
         const conversationId = this.requireParam('conversationId');
         const options = this.getQueryFilters();
         const result = await MessageService.getMessages(conversationId, options);
@@ -20,7 +20,7 @@ class MessageController extends ControllerBase {
         return this.success(result);
     }
 
-    async markRead(req: Request, _res: Response) {
+    async markRead(req: Request, res: Response) {
         const user = this.getUser<{ userId: string }>();
         const conversationId = this.requireParam('conversationId');
 

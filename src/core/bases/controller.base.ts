@@ -128,7 +128,10 @@ export abstract class ControllerBase {
         if (result !== undefined && !this.isStreamResponse(result)) {
             this.sendAutoResponse(result);
         } else {
-            this.sendErrorResponse(new ProblematicResponseError());
+            // Solo lanzamos error si no se envió nada Y tampoco se retornó nada
+            throw new ProblematicResponseError(
+                `No se preparó ninguna respuesta en un método de ${this.controllerName}`,
+            );
         }
     }
 
@@ -177,18 +180,8 @@ export abstract class ControllerBase {
 
     private handleError(error: any): void {
         const normalized = this.normalizeError(error);
-        this.sendErrorResponse(normalized);
-    }
 
-    private sendErrorResponse(error: AppError): void {
-        if (
-            !this.currentResponse ||
-            typeof this.currentResponse.status !== 'function' ||
-            this.currentResponse.headersSent
-        )
-            return;
-
-        this.currentResponse.status(error.statusCode).json(error.toJSON());
+        throw normalized;
     }
 
     private cleanupExecutionContext(): void {

@@ -44,7 +44,7 @@ export class AppError extends Error {
     }
 
     private logError(): void {
-        Logger.error(this.message, this);
+        Logger.error(null, this);
         /*
         const colors = {
             red: '\x1b[31m',

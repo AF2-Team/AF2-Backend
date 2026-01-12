@@ -8,13 +8,9 @@ class MessageService extends BaseService {
         this.validateRequired({ conversationId, senderId, text }, ['conversationId', 'senderId', 'text']);
 
         const conversation = await ConversationRepository.getById(conversationId);
-        if (!conversation || conversation.status !== 1) {
-            throw new Error('Conversation not found');
-        }
+        if (!conversation || conversation.status !== 1) throw new Error('Conversation not found');
 
-        if (!conversation.participants.includes(senderId)) {
-            throw new Error('Unauthorized');
-        }
+        if (!conversation.participants.includes(senderId)) throw new Error('Unauthorized');
 
         const message = await MessageRepository.create({
             conversation: conversationId,

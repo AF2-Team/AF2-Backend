@@ -1,6 +1,16 @@
 import { Schema } from 'mongoose';
 import { MongooseModelBase } from '@database/models/bases/mongoose.model.js';
 
+
+export type Follow = {
+    _id?: any;
+    follower: any; // o string | Schema.Types.ObjectId
+    targetModel: 'User' | 'Tag';
+    target: any;   // o string | Schema.Types.ObjectId
+    status: number;
+};
+
+
 export type FollowTargetModel = 'User' | 'Tag';
 
 export default class FollowModel extends MongooseModelBase {

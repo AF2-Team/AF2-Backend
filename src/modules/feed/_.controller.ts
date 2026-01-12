@@ -3,13 +3,19 @@ import { Request, Response } from 'express';
 import FeedService from './_.service.js';
 
 class FeedController extends ControllerBase {
-    get = async (_req: Request, _res: Response) => {
-        const userId = this.getUser()?.id;
+    async get() {
+        const user = this.getUser<{ _id: string }>();
         const options = this.getQueryFilters();
 
-        const result = await FeedService.getFeed(userId, options);
-        return this.success(result);
-    };
+        return this.success(await FeedService.getFeed(user?._id, options));
+    }
+
+    async tags() {
+        const user = this.getUser<{ _id: string }>();
+        const options = this.getQueryFilters();
+
+        return this.success(await FeedService.getTagFeed(user?._id, options));
+    }
 }
 
 export default new FeedController();

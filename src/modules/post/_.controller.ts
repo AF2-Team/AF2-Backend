@@ -3,16 +3,28 @@ import PostService from './_.service.js';
 
 class PostController extends ControllerBase {
     create = async () => {
+        console.log("📨 [POST] Petición recibida en /api/v1/post");
         const body = this.getBody();
-        const user = this.getUser<{ _id: string }>();
+        const user = this.getUser<any>();
+        const req = this.getRequest();
 
-        if (!user) this.throwValidationError('Unauthorized');
+        if (!user){ console.error("❌ [POST] No user session");
+            this.throwValidationError('User session not found');}
 
-        const result = await PostService.createPost({
-            ...body,
-            user: user._id,
-        });
-
+        const userId = user._id || user.id;
+  console.log(`👤 [POST] Usuario detectado: ${userId}`);
+        if (!userId) {
+            return this.throwValidationError('ID de usuario no disponible en el token');
+        }
+console.log("📦 [POST] Body recibido:", JSON.stringify(body));
+        const result = await PostService.createPost(
+            {
+                ...body,
+                user: String(userId),
+            },
+            req.files as Express.Multer.File[],
+        );
+  console.log("✅ [POST] Post creado exitosamente. ID:", result._id);
         return this.created(result, 'Post created');
     };
 
@@ -42,7 +54,7 @@ class PostController extends ControllerBase {
         if (!user) this.throwValidationError('Unauthorized');
 
         await PostService.deletePost(postId, user._id);
-        return this.noContent('Post deleted');
+        return this.success({ id: postId }, 'Post deleted');
     };
 
     uploadMedia = async () => {
@@ -85,8 +97,14 @@ class PostController extends ControllerBase {
     };
 
     feed = async () => {
-        const options = this.getQueryFilters();
-        return this.success(await PostService.getFeed(options));
+        const filters = this.getQueryFilters();
+        const page = Number(filters.raw.page) || 1;
+        
+        // Obtenemos el userId si existe en los parámetros de la ruta
+        // Si no existe (feed general), pasamos un string vacío
+        const userId = this.getParams().userId || '';
+
+        return this.success(await PostService.getFeed(userId, page));
     };
 
     combinedFeed = async () => {

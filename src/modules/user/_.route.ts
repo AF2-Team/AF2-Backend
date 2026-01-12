@@ -12,8 +12,8 @@ router.get('/username/:username', UserController.getByUsername);
 router.put('/me', AuthMiddleware.authenticate, UserController.updateMe);
 router.delete('/me', AuthMiddleware.authenticate, UserController.deleteMe);
 
-router.patch('/me/avatar', AuthMiddleware.authenticate, UploadMiddleware.single('avatar'), UserController.uploadAvatar);
-router.patch('/me/cover', AuthMiddleware.authenticate, UploadMiddleware.single('avatar'), UserController.uploadAvatar);
+router.patch('/me/avatar', AuthMiddleware.authenticate, UploadMiddleware.memory.single('media'), UserController.uploadAvatar);
+router.patch('/me/cover', AuthMiddleware.authenticate, UploadMiddleware.memory.single('media'), UserController.uploadAvatar);
 
 
 // Contenido del usuario

@@ -50,5 +50,5 @@ export interface ProcessedQueryFilters {
     };
     order: Array<[string, 'asc' | 'desc']>;
     qc: Record<string, any>;
-    raw?: Record<string, any>;
+    raw: Record<string, any>;
 }

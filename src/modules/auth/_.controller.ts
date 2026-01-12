@@ -32,6 +32,11 @@ class AuthController extends ControllerBase {
         const result = await AuthService.resetPassword(req.body);
         this.success(result, 'Password reset successful');
     }
+    async changePassword(req: Request, _res: Response) {
+        const userId = (req as any).user._id || (req as any).user.id;
+        const result = await AuthService.changePassword(userId, req.body);
+        this.success(result, 'Password changed successfully');
+    }
 }
 
 export default new AuthController();

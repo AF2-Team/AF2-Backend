@@ -1,6 +1,7 @@
 import { BaseService } from '@bases/service.base.js';
 import { Database } from '@database/index.js';
 import { ValidationError } from '@errors';
+import FollowRepository from '@database/repositories/main/follow.repository.js';
 
 class FollowService extends BaseService {
     async followUser(followerId: string, targetUserId: string) {
@@ -9,78 +10,86 @@ class FollowService extends BaseService {
         }
 
         const repo = Database.repository('main', 'follow');
+        const userRepo = Database.repository('main', 'user');
 
-        const exists = await repo.getOne({
+        const existingFollowing = await repo.getOne({
             follower: followerId,
             target: targetUserId,
-            targetType: 'user',
-            status: 1,
+            targetModel: 'User',
         });
 
-        if (exists) return { followed: true };
+        if (existingFollowing) {
+            if(existingFollowing.status === 1) {
+                return {followed: true};
+            }
+
+            await repo.update(existingFollowing._id, {status: 1});
+
+            await userRepo.update(targetUserId, { $inc: { followersCount: 1 } });
+            await userRepo.update(followerId, { $inc: { followingCount: 1 } });
+
+            return { followed: true };
+
+        }
 
         await repo.create({
             follower: followerId,
             target: targetUserId,
-            targetType: 'user',
+            targetModel: 'User',
             status: 1,
         });
+
+        await userRepo.update(targetUserId, { $inc: { followersCount: 1 } });
+        await userRepo.update(followerId, { $inc: { followingCount: 1 } });
 
         return { followed: true };
     }
 
     async unfollowUser(followerId: string, targetUserId: string) {
         const repo = Database.repository('main', 'follow');
+        const userRepo = Database.repository('main', 'user');
 
         const follow = await repo.getOne({
             follower: followerId,
             target: targetUserId,
-            targetType: 'user',
+            targetModel: 'User',
             status: 1,
         });
 
         if (!follow) return { unfollowed: false };
 
         await repo.update(follow._id.toString(), { status: 0 });
+
+        await userRepo.update(targetUserId, { $inc: { followersCount: -1 } });
+        await userRepo.update(followerId, { $inc: { followingCount: -1 } });
+        
         return { unfollowed: true };
     }
 
     async getFollowers(userId: string, options: any) {
-        const repo = Database.repository('main', 'follow');
-
-        return repo.getAllActive(options, {
-            target: userId,
-            targetType: 'user',
-            status: 1,
-        });
+        return FollowRepository.getFollowersUsers(userId, options);
     }
 
     async getFollowing(userId: string, options: any) {
-        const repo = Database.repository('main', 'follow');
-
-        return repo.getAllActive(options, {
-            follower: userId,
-            targetType: 'user',
-            status: 1,
-        });
+        return FollowRepository.getFollowingUsers(userId, options);
     }
 
     async followTag(userId: string, tagId: string) {
         const repo = Database.repository('main', 'follow');
 
-        const exists = await repo.getOne({
+        const existingFollowing = await repo.getOne({
             follower: userId,
             target: tagId,
-            targetType: 'tag',
+            targetModel: 'Tag',
             status: 1,
         });
 
-        if (exists) return { followed: true };
+        if (existingFollowing) return { followed: true };
 
         await repo.create({
             follower: userId,
             target: tagId,
-            targetType: 'tag',
+            targetModel: 'Tag',
             status: 1,
         });
 
@@ -89,11 +98,12 @@ class FollowService extends BaseService {
 
     async unfollowTag(userId: string, tagId: string) {
         const repo = Database.repository('main', 'follow');
+        
 
         const follow = await repo.getOne({
             follower: userId,
             target: tagId,
-            targetType: 'tag',
+            targetModel: 'Tag',
             status: 1,
         });
 

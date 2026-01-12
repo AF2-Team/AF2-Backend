@@ -9,6 +9,11 @@ class UserRepository extends MongooseRepositoryBase<User> {
     async findByEmail(email: string): Promise<User | null> {
         return this.model.findOne({ email, status: 1 }).select('+password').exec();
     }
+
+    async updateSocialCount(userId: string, type: 'followers' | 'following', amount: number) {
+        const field = type === 'followers' ? 'followersCount' : 'followingCount';
+        return this.model.updateOne({ _id: userId }, { $inc: { [field]: amount } }).exec();
+    }
 }
 
 export default new UserRepository();

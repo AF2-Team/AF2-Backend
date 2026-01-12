@@ -25,8 +25,8 @@ export class BcryptUtil {
         const minLength = password.length >= 8;
         const hasLetter = /[a-zA-Z]/.test(password);
         const hasNumber = /\d/.test(password);
-
-        return minLength && hasLetter && hasNumber;
+        const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+        return minLength && hasLetter && hasNumber && hasSpecial;
     }
 
     static generateRandomPassword(length: number = 12): string {

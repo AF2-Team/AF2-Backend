@@ -3,15 +3,17 @@ import { Database } from '@database/index.js';
 import { extractHashtags, normalizeHashtag } from '@utils/hashtags.util.js';
 import { ValidationError } from '@errors';
 import TagRepository from '@database/repositories/main/tag.repository.js';
+import PostRepository from '@database/repositories/main/post.repository.js';
 import { ImageKitService } from '@providers/imagekit.provider.js';
+
 
 class PostService extends BaseService {
     async createPost(data: any, files?: Express.Multer.File[]) {
         this.validateRequired(data, ['user']);
 
-        const postRepo = Database.repository('main', 'post');
+        const postRepo = Database.repository('main', 'post') as any;
         const tagRepo = Database.repository('main', 'tag');
-
+        const rawText = data.text || data.content;
         const text = typeof data.text === 'string' ? data.text.trim() : '';
         const hasText = text.length > 0;
 
@@ -65,25 +67,44 @@ class PostService extends BaseService {
             }
         }
 
-        return postRepo.create({
+       const newPost = await postRepo.create({
             user: data.user,
             text: hasText ? text : null,
             fontStyle: data.fontStyle,
-            media: mediaList, // Nuevo campo array
-            mediaUrl: hasMedia ? mediaList[0].url : null, // Mantener compatibilidad (primera imagen)
-            mediaId: hasMedia ? mediaList[0].fileId : null, // Mantener compatibilidad
+            media: mediaList,
+            mediaUrl: hasMedia ? mediaList[0].url : null,
+            mediaId: hasMedia ? mediaList[0].fileId : null,
             tags: normalizedTags,
             type: 'post',
             status: 1,
             publishStatus: 'published',
         });
+       let populatedPost = newPost;
+        
+        if (typeof postRepo.getByIdPopulated === 'function') {
+             populatedPost = await postRepo.getByIdPopulated(newPost._id.toString());
+        } else {
+             // Fallback manual si el repositorio no tiene el método
+             populatedPost = await postRepo.model.findById(newPost._id).populate('user', 'username name avatar').lean();
+             if(populatedPost) {
+                 populatedPost.author = populatedPost.user; // Mapeo manual
+                 populatedPost.id = populatedPost._id;
+             }
+        }
+
+        return populatedPost || newPost;;
     }
 
-    async getFeed(options: any) {
+   async getFeed(userId: string, page: number = 1) { // Asumo que recibes userId y page
         const postRepo = Database.repository('main', 'post');
-        return postRepo.getAllActive(options, {
-            publishStatus: 'published',
-        });
+
+        // ⚠️ CORRECCIÓN: Pasamos un objeto 'options' en vez de argumentos sueltos
+        const posts = await postRepo.getAllActive(
+            { page: page, limit: 20 }, // Primer argumento: opciones de paginación
+            { publishStatus: 'published' }                         // Segundo argumento: filtros (vacío para traer todo)
+        );
+
+        return posts;
     }
 
     async getByUser(userId: string, options: any) {

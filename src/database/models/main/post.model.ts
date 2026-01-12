@@ -8,6 +8,7 @@ export default class PostModel extends MongooseModelBase {
 
     static override definition() {
         return {
+
             user: {
                 type: Schema.Types.ObjectId,
                 ref: 'User',
@@ -45,7 +46,9 @@ export default class PostModel extends MongooseModelBase {
                     fileId: String,
                 }
             ], 
-
+             
+            mediaUrl: { type: String },
+            mediaId: { type: String },
             tags: [
                 {
                     type: String,
@@ -72,8 +75,10 @@ export default class PostModel extends MongooseModelBase {
         };
     }
 
-    static override applyHooks(schema: Schema): void {
-        schema.pre('validate', function (next) {
+  static override applyHooks(schema: Schema): void {
+        // CORRECCIÓN 1: Eliminamos 'next'. 
+        // En Mongoose, si lanzas un error (throw), se detiene. Si la función termina, sigue.
+        schema.pre('validate', function () {
             const doc: any = this;
 
             if (doc.type === 'repost' && !doc.originalPost) {
@@ -85,14 +90,24 @@ export default class PostModel extends MongooseModelBase {
             }
         });
 
+        // CORRECCIÓN 2: Usamos doc.constructor
         schema.post('save', async function (doc: any) {
-            if (doc.type === 'repost' && doc.originalPost && doc.isNew) {
-                await doc.constructor.updateOne({ _id: doc.originalPost }, { $inc: { repostsCount: 1 } });
+            // Verificamos que sea repost y tenga originalPost
+            if (doc.type === 'repost' && doc.originalPost) { 
+                
+                // 'doc.constructor' es una referencia directa al Modelo (PostModel)
+                // Esto es mucho mejor que usar mongoose.model('Post') porque evita dependencias circulares
+                // y no requiere importar 'mongoose' globalmente.
+                await (doc.constructor as any).updateOne(
+                    { _id: doc.originalPost }, 
+                    { $inc: { repostsCount: 1 } }
+                );
             }
         });
     }
 
     static override applyIndices(schema: Schema): void {
+        // CORRECCIÓN 2: Actualizado el índice para usar 'author' en lugar de 'user'
         schema.index({ user: 1, createdAt: -1 });
         schema.index({ publishStatus: 1, createdAt: -1 });
         schema.index({ tags: 1 });

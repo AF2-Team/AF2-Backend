@@ -38,7 +38,7 @@ class FeedService extends BaseService {
             allowedUsers = [userId, ...follows.map((f: any) => f.target)];
         }
 
-        const cursor = options?.filters?.cursor;
+        const cursor = options.raw?.cursor;
         const cursorDate = cursor ? new Date(cursor) : undefined;
 
         const where: any = {
@@ -83,11 +83,10 @@ class FeedService extends BaseService {
     async getTagFeed(userId: string | undefined, options: ProcessedQueryFilters) {
         const postRepo = Database.repository('main', 'post');
         const followRepo = Database.repository('main', 'follow');
-        const tagRepo = Database.repository('main', 'tag');
 
         let tags: string[] = [];
 
-        const rawTags = options.filters?.tags;
+        const rawTags = options.raw?.tags;
         if (rawTags) {
             tags = rawTags
                 .split(',')
@@ -96,30 +95,12 @@ class FeedService extends BaseService {
         }
 
         if (!tags.length && userId) {
-            const follows = await followRepo.getAllActive(
-                {},
-                {
-                    follower: userId,
-                    targetModel: 'Tag',
-                    status: 1,
-                },
-            );
+            const follows = await followRepo.getAllActive({}, { follower: userId, targetModel: 'Tag', status: 1 });
 
-            /**
-             * Si Follow.target guarda NORMALIZED directamente:
-             */
             tags = follows.map((f: any) => f.target);
-
-            /**
-             * Si Follow.target guarda ObjectId del Tag (alternativa):
-             *
-             * const tagIds = follows.map((f: any) => f.target);
-             * const tagDocs = await tagRepo.getAllActive({}, { _id: { $in: tagIds } });
-             * tags = tagDocs.map((t: any) => t.normalized);
-             */
         }
 
-        const cursor = options.filters?.cursor;
+        const cursor = options.raw?.cursor;
         const cursorDate = cursor ? new Date(cursor) : undefined;
 
         const where: any = {

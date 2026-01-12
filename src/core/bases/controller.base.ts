@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { QueryBuilder } from '@utils/query-builder.js';
 import { ApiResponse } from '@rules/api-response.type.js';
 import { PaginationMetadata, ProcessedQueryFilters } from '@rules/api-query.type.js';
-import { AppError, ValidationError, UnknownError, ProblematicResponseError } from '@errors';
+import { AppError, ValidationError, UnknownError, ProblematicResponseError, AuthError } from '@errors';
 import { Validator } from '@utils/validator.util.js';
 
 export abstract class ControllerBase {
@@ -258,15 +258,12 @@ export abstract class ControllerBase {
         return this.currentRequest;
     }
 
-    protected getUser<T = any>(): T | null {
-        return (this.getRequest() as any).user || null;
-    }
+    protected getUser<T = any>(): T {
+        const session = this.getUser<T>();
 
-    /**
-     * Lanza un error de validación explícito
-     */
-    protected throwValidationError(message: string, details?: any): never {
-        throw new ValidationError(message, details);
+        if (!session) throw new AuthError('User authentication required');
+
+        return (session as any).user;
     }
 
     /**

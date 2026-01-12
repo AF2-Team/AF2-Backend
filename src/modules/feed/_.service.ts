@@ -26,13 +26,20 @@ class FeedService extends BaseService {
         let allowedUsers: string[] | undefined;
 
         if (userId) {
-            const follows = await followRepo.getAllActive({}, { follower: userId, targetType: 'user', status: 1 });
+            const follows = await followRepo.getAllActive(
+                {},
+                {
+                    follower: userId,
+                    targetModel: 'User',
+                    status: 1,
+                },
+            );
 
             allowedUsers = [userId, ...follows.map((f: any) => f.target)];
         }
 
-        const cursorValue = (options as any)?.filters?.cursor;
-        const cursorDate = cursorValue ? new Date(cursorValue) : undefined;
+        const cursor = options?.filters?.cursor;
+        const cursorDate = cursor ? new Date(cursor) : undefined;
 
         const where: any = {
             publishStatus: 'published',
@@ -65,11 +72,82 @@ class FeedService extends BaseService {
             return b.createdAt.getTime() - a.createdAt.getTime();
         });
 
-        const sliced = scored.slice(0, limit);
+        const items = scored.slice(0, limit);
 
         return {
-            items: sliced,
-            nextCursor: sliced.length > 0 ? sliced[sliced.length - 1].createdAt.toISOString() : null,
+            items,
+            nextCursor: items.length ? items[items.length - 1].createdAt.toISOString() : null,
+        };
+    }
+
+    async getTagFeed(userId: string | undefined, options: ProcessedQueryFilters) {
+        const postRepo = Database.repository('main', 'post');
+        const followRepo = Database.repository('main', 'follow');
+        const tagRepo = Database.repository('main', 'tag');
+
+        let tags: string[] = [];
+
+        const rawTags = options.filters?.tags;
+        if (rawTags) {
+            tags = rawTags
+                .split(',')
+                .map((t: string) => t.toLowerCase().trim())
+                .filter(Boolean);
+        }
+
+        if (!tags.length && userId) {
+            const follows = await followRepo.getAllActive(
+                {},
+                {
+                    follower: userId,
+                    targetModel: 'Tag',
+                    status: 1,
+                },
+            );
+
+            /**
+             * Si Follow.target guarda NORMALIZED directamente:
+             */
+            tags = follows.map((f: any) => f.target);
+
+            /**
+             * Si Follow.target guarda ObjectId del Tag (alternativa):
+             *
+             * const tagIds = follows.map((f: any) => f.target);
+             * const tagDocs = await tagRepo.getAllActive({}, { _id: { $in: tagIds } });
+             * tags = tagDocs.map((t: any) => t.normalized);
+             */
+        }
+
+        const cursor = options.filters?.cursor;
+        const cursorDate = cursor ? new Date(cursor) : undefined;
+
+        const where: any = {
+            publishStatus: 'published',
+            status: 1,
+        };
+
+        if (tags.length) {
+            where.tags = { $in: tags };
+        }
+
+        if (cursorDate) {
+            where.createdAt = { $lt: cursorDate };
+        }
+
+        const limit = options.pagination?.limit ?? 20;
+
+        const posts = await postRepo.getAllActive(
+            {
+                pagination: { limit, offset: 0 },
+                order: [['createdAt', 'desc']],
+            },
+            where,
+        );
+
+        return {
+            items: posts,
+            nextCursor: posts.length ? posts[posts.length - 1].createdAt.toISOString() : null,
         };
     }
 }

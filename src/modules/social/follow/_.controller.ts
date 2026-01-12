@@ -4,9 +4,14 @@ import FollowService from './_.service.js';
 class FollowController extends ControllerBase {
     followUser = async () => {
         const user = this.getUser<{ _id: string }>();
-        if (!user) this.throwValidationError('Unauthorized');
-
         const targetUserId = this.requireParam('userId');
+
+         if (!user) this.throwValidationError('Unauthorized');
+
+        if (user._id === targetUserId) {
+            return this.throwValidationError('You cannot follow yourself');
+        }
+
         const result = await FollowService.followUser(user._id, targetUserId);
 
         return this.created(result, 'User followed');

@@ -7,7 +7,7 @@ import notificationRoute from './notification/_.route.js';
 const router = Router();
 
 router.use('/follow', followRoute);
-router.use('/interaction', interactionRoute);
+//router.use('/interaction', interactionRoute);
 router.use('/favorite', favoriteRoute);
 router.use('/notification', notificationRoute);
 

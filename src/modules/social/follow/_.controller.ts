@@ -2,7 +2,7 @@ import { ControllerBase } from '@bases/controller.base.js';
 import FollowService from './_.service.js';
 
 class FollowController extends ControllerBase {
-    followUser = async () => {
+    async followUser() {
         const user = this.getUser<{ _id: string }>();
         const targetUserId = this.requireParam('userId');
 
@@ -14,53 +14,53 @@ class FollowController extends ControllerBase {
 
         const result = await FollowService.followUser(user._id, targetUserId);
 
-        return this.created(result, 'User followed');
+        this.created(result, 'User followed');
     };
 
-    unfollowUser = async () => {
+     async unfollowUser() {
         const user = this.getUser<{ _id: string }>();
         if (!user) this.throwValidationError('Unauthorized');
 
         const targetUserId = this.requireParam('userId');
         const result = await FollowService.unfollowUser(user._id, targetUserId);
 
-        return this.success(result);
+        this.success(result);
     };
 
-    followers = async () => {
+    async getFollowers () {
         const userId = this.requireParam('userId');
         const options = this.getQueryFilters();
 
         const result = await FollowService.getFollowers(userId, options);
-        return this.success(result);
+        this.success(result);
     };
 
-    following = async () => {
+     async getFollowings () {
         const userId = this.requireParam('userId');
         const options = this.getQueryFilters();
 
         const result = await FollowService.getFollowing(userId, options);
-        return this.success(result);
+        this.success(result);
     };
 
-    followTag = async () => {
+     async followTag () {
         const user = this.getUser<{ _id: string }>();
         if (!user) this.throwValidationError('Unauthorized');
 
         const tagId = this.requireParam('tagId');
         const result = await FollowService.followTag(user._id, tagId);
 
-        return this.created(result, 'Tag followed');
+        this.created(result, 'Tag followed');
     };
 
-    unfollowTag = async () => {
+    async unfollowTag () {
         const user = this.getUser<{ _id: string }>();
         if (!user) this.throwValidationError('Unauthorized');
 
         const tagId = this.requireParam('tagId');
         const result = await FollowService.unfollowTag(user._id, tagId);
 
-        return this.success(result);
+        this.success(result);
     };
 }
 

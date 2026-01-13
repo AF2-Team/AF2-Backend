@@ -18,6 +18,21 @@ class PostService extends BaseService {
         return Database.repository('main', 'interaction');
     }
 
+    // --- HELPER PRIVADO PARA OBTENER OBJETO LIMPIO ---
+    // Esto asegura que devolvemos un JSON puro (lean) y evitamos el error de Stack Size
+    private async getCleanPost(postId: string) {
+        const repo = this.getPostRepo() as any;
+        if (repo.model) {
+            return await repo.model
+                .findById(postId)
+                .populate('user', 'name username avatarUrl') // Poblamos autor
+                .lean(); // <--- LA CLAVE: Objeto JSON puro sin lógica de Mongoose
+        }
+        // Fallback si no podemos acceder al modelo directo
+        const doc = await repo.getById(postId);
+        return doc && doc.toObject ? doc.toObject() : doc;
+    }
+
     async createPost(data: any, files?: any[]) {
         this.validateRequired(data, ['user']);
 
@@ -31,11 +46,9 @@ class PostService extends BaseService {
 
         const mediaList: Array<{ url: string; fileId: string }> = [];
 
-        // 1. Subida de Archivos
+        // 1. Validaciones y Subida
         if (files && Array.isArray(files) && files.length > 0) {
-            if (files.length > 5) {
-                throw new ValidationError('Maximum 5 media files allowed per post');
-            }
+            if (files.length > 5) throw new ValidationError('Maximum 5 media files allowed');
 
             for (const file of files) {
                 const res = (await ImageKitService.upload(file, 'posts')) as any;
@@ -55,26 +68,17 @@ class PostService extends BaseService {
             throw new ValidationError('Post text cannot exceed 4000 characters');
         }
 
-        // 2. Procesamiento de Hashtags
+        // 2. Hashtags
         const normalizedTags: string[] = [];
         if (hasText) {
             const extracted = extractHashtags(text);
-
             for (const rawTag of extracted) {
                 const normalized = normalizeHashtag(rawTag);
                 let tag = await tagRepo.getOne({ normalized });
-
                 if (!tag) {
-                    tag = await tagRepo.create({
-                        name: rawTag,
-                        normalized,
-                        postsCount: 1,
-                        status: 1,
-                    });
+                    tag = await tagRepo.create({ name: rawTag, normalized, postsCount: 1, status: 1 });
                 } else {
-                    await tagRepo.update(tag.id, {
-                        postsCount: (tag.postsCount || 0) + 1,
-                    });
+                    await tagRepo.update(tag.id, { postsCount: (tag.postsCount || 0) + 1 });
                 }
                 normalizedTags.push(normalized);
             }
@@ -97,24 +101,19 @@ class PostService extends BaseService {
             postData.mediaId = mediaList[0].fileId;
         }
 
-        // 3. Crear Post
+        // 3. Crear Documento
         const newPost = await postRepo.create(postData);
 
-        // 4. Poblar Datos del Usuario (Nombre, Avatar)
-        // Esto es crucial para que la App muestre quién creó el post
-        if (newPost && typeof newPost.populate === 'function') {
-            await newPost.populate('user', 'name username avatarUrl');
-        }
-
-        // 5. SOLUCIÓN RANGE ERROR: Devolver Objeto Plano
-        // Si no hacemos .toObject(), Express intenta serializar toda la conexión de Mongoose
-        return newPost && typeof newPost.toObject === 'function' ? newPost.toObject() : newPost;
+        // 4. RETORNAR VERSIÓN LIMPIA (LEAN)
+        // Consultamos de nuevo para asegurar que devolvemos un POJO (Plain Old JavaScript Object)
+        return await this.getCleanPost(newPost._id.toString());
     }
 
     async getPostById(postId: string) {
-        this.validateRequired({ postId }, ['postId']);
-        const postRepo = this.getPostRepo();
-        return postRepo.getById(postId);
+        // Usamos también getCleanPost para coherencia, o el método estándar
+        const post = await this.getCleanPost(postId);
+        if (!post) throw new NotFoundError('Post', postId);
+        return post;
     }
 
     async createRepost(userId: string, originalPostId: string) {
@@ -147,7 +146,6 @@ class PostService extends BaseService {
 
         const repost = await postRepo.create(repostData);
 
-        // Notificación
         if (originalPost.user.toString() !== userId) {
             try {
                 await NotificationService.notify({
@@ -159,11 +157,11 @@ class PostService extends BaseService {
             } catch { }
         }
 
-        // Devolver objeto plano
-        return repost && typeof repost.toObject === 'function' ? repost.toObject() : repost;
+        // 4. RETORNAR VERSIÓN LIMPIA (LEAN)
+        return await this.getCleanPost(repost._id.toString());
     }
 
-    // --- Getters y Utilidades ---
+    // --- Resto de métodos ---
 
     async getReposts(postId: string, options: any) {
         this.validateRequired({ postId }, ['postId']);
@@ -209,12 +207,10 @@ class PostService extends BaseService {
             const newText = String(payload.text).trim();
             if (newText.length > 4000) throw new ValidationError('Post text cannot exceed 4000 characters');
             
-            // Validación corregida: Si borra el texto, debe haber media o url
             if (!newText && !post.url && (!post.media || post.media.length === 0))
                 throw new ValidationError('Post must contain text, URL, or media');
 
             payload.text = newText;
-
             if (newText !== (post.text || '')) {
                 const extracted = extractHashtags(newText);
                 payload.tags = extracted.map(normalizeHashtag);
@@ -225,15 +221,14 @@ class PostService extends BaseService {
     }
 
     async deletePost(postId: string, userId: string) {
-        this.validateRequired({ postId, userId }, ['postId', 'userId']);
         const postRepo = this.getPostRepo();
         const post = await postRepo.getById(postId);
-
         if (!post) throw new NotFoundError('Post', postId);
         if (post.user.toString() !== userId) throw new ValidationError('Unauthorized');
-
+        
         await postRepo.update(postId, { status: 0 });
-
+        
+        // Decrementar contadores de tags
         if (post.tags?.length) {
             const tagRepo = this.getTagRepo();
             for (const tagName of post.tags) {
@@ -243,66 +238,47 @@ class PostService extends BaseService {
                 }
             }
         }
-
         return { deleted: true };
     }
 
     async addMedia(postId: string, userId: string, file: any) {
-        this.validateRequired({ postId, userId, file }, ['postId', 'userId', 'file']);
         const postRepo = this.getPostRepo();
         const post = await postRepo.getById(postId);
-
         if (!post || post.status !== 1) throw new NotFoundError('Post', postId);
         if (post.user.toString() !== userId) throw new ValidationError('Unauthorized');
 
         const res = (await ImageKitService.upload(file, 'posts')) as any;
-        if (!res?.url || !res?.fileId) throw new ValidationError('Failed to upload media');
-
         const currentMedia = Array.isArray(post.media) ? post.media : [];
         const updatedMedia = [...currentMedia, { url: res.url, fileId: res.fileId }];
 
-        return postRepo.update(postId, {
-            media: updatedMedia,
-            mediaUrl: updatedMedia[0]?.url || null,
-            mediaId: updatedMedia[0]?.fileId || null,
-        });
+        return postRepo.update(postId, { media: updatedMedia });
     }
 
     async getPostsByUser(userId: string, options: any) {
-        this.validateRequired({ userId }, ['userId']);
         const postRepo = this.getPostRepo();
         return postRepo.getAllActive(options, { user: userId, type: 'post', publishStatus: 'published', status: 1 });
     }
 
     async getPostsByTag(tagName: string, options: any) {
-        this.validateRequired({ tagName }, ['tagName']);
         const postRepo = this.getPostRepo();
         return postRepo.getAllActive(options, { tags: normalizeHashtag(tagName), publishStatus: 'published', status: 1 });
     }
 
     async getTagInfo(name: string) {
-        this.validateRequired({ name }, ['name']);
         const tagRepo = this.getTagRepo();
         return tagRepo.getOne({ $or: [{ name }, { normalized: normalizeHashtag(name) }], status: 1 });
     }
 
     async getTrendingTags(options: any) {
         const tagRepo = this.getTagRepo();
-        const repo = tagRepo as any;
-        if (repo.getTrending) return repo.getTrending(options);
-
-        return tagRepo.getAllActive(
-            { ...options, order: [['postsCount', 'desc']] },
-            { status: 1, postsCount: { $gt: 0 } },
-        );
+        return tagRepo.getAllActive({ ...options, order: [['postsCount', 'desc']] }, { status: 1, postsCount: { $gt: 0 } });
     }
-
-    // Métodos para feeds
+    
     async getFeed(userId: string, page: number = 1) {
         const postRepo = Database.repository('main', 'post');
         return postRepo.getAllActive({ page, limit: 20 }, { publishStatus: 'published' });
     }
-
+    
     async getCombinedFeed(userId: string, options: any) {
         const postRepo = Database.repository('main', 'post');
         return postRepo.getAllActive(options, { publishStatus: 'published' });

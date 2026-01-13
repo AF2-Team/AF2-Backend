@@ -1,34 +1,35 @@
 import { ControllerBase } from '@bases/controller.base.js';
-import { Request, Response } from 'express';
 import SearchService from './_.service.js';
+import { AuthError } from '@errors/auth.error.js';
 
 class SearchController extends ControllerBase {
-    search = async (_req: Request, _res: Response) => {
+    async search() {
         const q = String(this.getQuery().q ?? '');
         const type = String(this.getQuery().type ?? 'all');
-        const userId = this.getUser()?.id;
+        const user = this.getUser<{ _id: string }>();
+        const userId = user?._id;
 
         const options = this.getQueryFilters();
         const result = await SearchService.search(q, type, userId, options);
 
-        return this.success(result);
-    };
+        this.success(result);
+    }
 
-    history = async () => {
-        const user = this.getUser<{ id: string }>();
-        if (!user) this.throwValidationError('Unauthorized');
+    async getSearchHistory() {
+        const user = this.getUser<{ _id: string }>();
+        if (!user) throw new AuthError('Unauthorized');
 
-        const result = await SearchService.getHistory(user.id);
-        return this.success(result);
-    };
+        const result = await SearchService.getSearchHistory(user._id);
+        this.success(result);
+    }
 
-    clearHistory = async () => {
-        const user = this.getUser<{ id: string }>();
-        if (!user) this.throwValidationError('Unauthorized');
+    async clearSearchHistory() {
+        const user = this.getUser<{ _id: string }>();
+        if (!user) throw new AuthError('Unauthorized');
 
-        await SearchService.clearHistory(user.id);
-        return this.success({ cleared: true });
-    };
+        await SearchService.clearSearchHistory(user._id);
+        this.success({ cleared: true });
+    }
 }
 
 export default new SearchController();

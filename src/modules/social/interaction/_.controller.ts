@@ -1,55 +1,46 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import InteractionService from './_.service.js';
+import { AuthError } from '@errors/auth.error.js';
 
 class InteractionController extends ControllerBase {
-    like = async () => {
+    async likePost() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) this.throwValidationError('Unauthorized');
+        if (!user) throw new AuthError('Unauthorized');
 
         const postId = this.requireParam('postId');
-        const result = await InteractionService.like(user._id, postId);
+        const result = await InteractionService.likePost(user._id, postId);
 
-        return this.created(result, 'Post liked');
-    };
+        this.created(result, 'Post liked');
+    }
 
-    unlike = async () => {
+    async unlikePost() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) this.throwValidationError('Unauthorized');
+        if (!user) throw new AuthError('Unauthorized');
 
         const postId = this.requireParam('postId');
-        const result = await InteractionService.unlike(user._id, postId);
+        const result = await InteractionService.unlikePost(user._id, postId);
 
-        return this.success(result);
-    };
+        this.success(result);
+    }
 
-    comment = async () => {
+    async createComment() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) this.throwValidationError('Unauthorized');
+        if (!user) throw new AuthError('Unauthorized');
 
         const postId = this.requireParam('postId');
         const text = this.requireBodyField('text');
 
-        const result = await InteractionService.comment(user._id, postId, text);
-        return this.created(result, 'Comment created');
-    };
+        const result = await InteractionService.createComment(user._id, postId, text);
+        this.created(result, 'Comment created');
+    }
 
-    comments = async () => {
+    async getComments() {
         const postId = this.requireParam('postId');
         const options = this.getQueryFilters();
 
         const result = await InteractionService.getComments(postId, options);
-        return this.success(result);
-    };
-
-    repost = async () => {
-        const user = this.getUser<{ _id: string }>();
-        if (!user) this.throwValidationError('Unauthorized');
-
-        const postId = this.requireParam('postId');
-        const result = await InteractionService.repost(user._id, postId);
-
-        return this.created(result, 'Repost registered');
-    };
+        this.success(result);
+    }
 }
 
 export default new InteractionController();

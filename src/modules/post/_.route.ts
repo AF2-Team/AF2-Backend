@@ -5,34 +5,50 @@ import { UploadMiddleware } from '@middlewares/upload.middleware.js';
 
 const router = Router();
 
-// CRUD de Posts
-router.post('/', AuthMiddleware.authenticate, UploadMiddleware.memory.array('media', 3), PostController.createPost);
-router.get('/:id', PostController.getPost);
-router.put('/:id', AuthMiddleware.authenticate, PostController.updatePost);
-router.delete('/:id', AuthMiddleware.authenticate, PostController.deletePost);
+// --- RUTAS GLOBALES ---
 
-// Media adicional
+// Crear Post (POST /) -> Llama a PostController.create
+router.post(
+    '/', 
+    AuthMiddleware.authenticate, 
+    UploadMiddleware.memory.array('media', 5), // Corregido para usar array
+    PostController.create
+);
+
+// Feed General (GET /)
+router.get('/', PostController.feed);
+
+// Feed Combinado (GET /feed)
+router.get('/feed', AuthMiddleware.authenticate, PostController.combinedFeed);
+
+// --- FILTROS Y TAGS ---
+router.get('/user/:userId', PostController.byUser);
+router.get('/tag/:tag', PostController.byTag);
+router.get('/tags/trending', PostController.trendingTags);
+router.get('/tags/:name', PostController.tagInfo);
+
+// --- ACCIONES SOBRE POST (ID) ---
+// Importante: Rutas con :id van al final
+
+// Subir media extra
 router.post(
     '/:id/media',
     AuthMiddleware.authenticate,
     UploadMiddleware.memory.single('media'),
-    PostController.uploadPostMedia,
+    PostController.uploadMedia
 );
 
-// Reposts
-router.post('/:id/repost', AuthMiddleware.authenticate, PostController.createRepost);
-router.get('/:id/reposts', PostController.getPostReposts);
+// Repost
+router.post('/:id/repost', AuthMiddleware.authenticate, PostController.repost);
+router.get('/:id/reposts', PostController.reposts);
 
 // Interacciones
-router.get('/:id/likes', PostController.getPostLikes);
-router.get('/:id/interactions', PostController.getPostInteractions);
+router.get('/:id/likes', PostController.likes);
+router.get('/:id/interactions', PostController.interactions);
 
-// Filtros
-router.get('/user/:userId', PostController.getPostsByUser);
-router.get('/tag/:tag', PostController.getPostsByTag);
-
-// Tags
-router.get('/tags/trending', PostController.getTrendingTags);
-router.get('/tags/:name', PostController.getTagInfo);
+// CRUD Básico
+router.get('/:id', PostController.getById); // Llama a getById
+router.patch('/:id', AuthMiddleware.authenticate, PostController.update); // Llama a update
+router.delete('/:id', AuthMiddleware.authenticate, PostController.delete); // Llama a delete
 
 export default router;

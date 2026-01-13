@@ -4,12 +4,11 @@ import { AuthMiddleware } from '@middlewares/auth.middleware.js';
 
 const router = Router();
 
-
-router.post('/like/:postId', AuthMiddleware.authenticate, InteractionController.like);
-router.delete('/like/:postId', AuthMiddleware.authenticate, InteractionController.unlike);
-router.post('/comment/:postId', AuthMiddleware.authenticate, InteractionController.comment);
-router.get('/comment/:postId', InteractionController.comments);
-
-router.post('/repost/:postId', AuthMiddleware.authenticate, InteractionController.repost);
+// Likes
+router.post('/posts/:postId/like', AuthMiddleware.authenticate, InteractionController.likePost);
+router.delete('/posts/:postId/like', AuthMiddleware.authenticate, InteractionController.unlikePost);
+// Comments
+router.post('/posts/:postId/comments', AuthMiddleware.authenticate, InteractionController.createComment);
+router.get('/posts/:postId/comments', InteractionController.getComments);
 
 export default router;

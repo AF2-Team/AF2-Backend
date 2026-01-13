@@ -18,29 +18,60 @@ class PostService extends BaseService {
         return Database.repository('main', 'interaction');
     }
 
-    /**
-     * --- MÉTODO SALVAVIDAS ---
-     * Busca el post por ID usando .lean() para asegurar que devuelve un JSON puro.
-     * Esto evita el error "Maximum call stack size exceeded".
-     */
-    private async getCleanPost(postId: string) {
-        const repo = this.getPostRepo() as any;
+    // --- MAPPER MANUAL DE SEGURIDAD ---
+    // Construimos la respuesta "a mano" para garantizar que sea JSON puro.
+    // Esto elimina 100% el error de RangeError.
+    private async buildSafeResponse(postDoc: any) {
+        if (!postDoc) return null;
+
+        // 1. Obtenemos datos del autor aparte para evitar usar .populate() recursivo
+        let authorData = postDoc.user;
         
-        // Opción A: Acceso directo al modelo Mongoose (Más seguro y rápido)
-        if (repo.model) {
-            return await repo.model
-                .findById(postId)
-                .populate('user', 'name username avatarUrl') // Poblamos autor
-                .lean() // <--- ESTO ELIMINA TODA LA BASURA DE MONGOOSE
-                .exec();
+        // Si 'user' es solo un ID (string u ObjectId), buscamos el usuario
+        if (authorData && (typeof authorData === 'string' || authorData.constructor.name === 'ObjectId')) {
+            const userRepo = Database.repository('main', 'user');
+            const user = await userRepo.getById(authorData.toString());
+            if (user) {
+                // Mapeamos solo lo necesario del usuario
+                authorData = {
+                    _id: user._id,
+                    name: user.name,
+                    username: user.username,
+                    avatarUrl: user.avatarUrl
+                };
+            }
+        } else if (authorData && authorData._id) {
+            // Si ya venía poblado, lo limpiamos también
+            authorData = {
+                _id: authorData._id,
+                name: authorData.name,
+                username: authorData.username,
+                avatarUrl: authorData.avatarUrl
+            };
         }
 
-        // Opción B: Fallback genérico (si no hay acceso al modelo)
-        const doc = await repo.getById(postId);
-        // Construcción manual del JSON para romper referencias circulares
-        if (!doc) return null;
-        
-        return JSON.parse(JSON.stringify(doc));
+        // 2. Retornamos UN OBJETO NUEVO (Literal Object)
+        return {
+            _id: postDoc._id,
+            text: postDoc.text,
+            url: postDoc.url,
+            media: postDoc.media ? postDoc.media : [], // Aseguramos array
+            mediaUrl: postDoc.mediaUrl, // Legacy
+            mediaId: postDoc.mediaId,   // Legacy
+            tags: postDoc.tags,
+            type: postDoc.type,
+            status: postDoc.status,
+            publishStatus: postDoc.publishStatus,
+            fontStyle: postDoc.fontStyle,
+            createdAt: postDoc.createdAt,
+            updatedAt: postDoc.updatedAt,
+            user: authorData, // Aquí va el usuario limpio
+            
+            // Campos calculados por si acaso (inicializados en 0)
+            likesCount: postDoc.likesCount || 0,
+            commentsCount: postDoc.commentsCount || 0,
+            repostsCount: postDoc.repostsCount || 0
+        };
     }
 
     async createPost(data: any, files?: any[]) {
@@ -56,10 +87,9 @@ class PostService extends BaseService {
 
         const mediaList: Array<{ url: string; fileId: string }> = [];
 
-        // 1. Subida de Archivos
+        // 1. Subida
         if (files && Array.isArray(files) && files.length > 0) {
             if (files.length > 5) throw new ValidationError('Maximum 5 media files allowed');
-
             for (const file of files) {
                 const res = (await ImageKitService.upload(file, 'posts')) as any;
                 if (res?.url && res?.fileId) {
@@ -111,21 +141,27 @@ class PostService extends BaseService {
             postData.mediaId = mediaList[0].fileId;
         }
 
-        // 3. CREAMOS EL POST (Pero NO devolvemos esta variable)
+        // 3. Crear en DB
         const newPost = await postRepo.create(postData);
 
-        // 4. RETORNAMOS LA VERSIÓN LIMPIA (Consultada de cero)
-        return await this.getCleanPost(newPost._id.toString());
+        // 4. RETORNO MANUAL SEGURO
+        return await this.buildSafeResponse(newPost);
     }
 
     async getPostById(postId: string) {
-        const post = await this.getCleanPost(postId);
+        this.validateRequired({ postId }, ['postId']);
+        const postRepo = this.getPostRepo();
+        const post = await postRepo.getById(postId);
+        
         if (!post) throw new NotFoundError('Post', postId);
-        return post;
+
+        // Usamos el builder también aquí para consistencia
+        return await this.buildSafeResponse(post);
     }
 
     async createRepost(userId: string, originalPostId: string) {
         this.validateRequired({ userId, originalPostId }, ['userId', 'originalPostId']);
+
         const postRepo = this.getPostRepo();
         const originalPost = await postRepo.getById(originalPostId);
 
@@ -164,21 +200,24 @@ class PostService extends BaseService {
             } catch { }
         }
 
-        // RETORNO LIMPIO
-        return await this.getCleanPost(repost._id.toString());
+        // RETORNO MANUAL SEGURO
+        return await this.buildSafeResponse(repost);
     }
 
-    // --- Resto de métodos (Getters) ---
-    // Usan el repositorio normal, que para listas suele funcionar bien.
+    // --- Getters que retornan Listas ---
+    // Los repositorios suelen manejar bien las listas con .lean() interno, 
+    // pero si fallan, se les puede aplicar un map(p => buildSafeResponse(p))
     
     async getReposts(postId: string, options: any) {
         this.validateRequired({ postId }, ['postId']);
-        return this.getPostRepo().getAllActive(options, { originalPost: postId, type: 'repost', status: 1 });
+        const postRepo = this.getPostRepo();
+        return postRepo.getAllActive(options, { originalPost: postId, type: 'repost', status: 1 });
     }
 
     async getLikes(postId: string, options: any) {
         this.validateRequired({ postId }, ['postId']);
-        return this.getInteractionRepo().getAllActive(options, { post: postId, type: 'like', status: 1 });
+        const interactionRepo = this.getInteractionRepo();
+        return interactionRepo.getAllActive(options, { post: postId, type: 'like', status: 1 });
     }
 
     async getInteractions(postId: string) {

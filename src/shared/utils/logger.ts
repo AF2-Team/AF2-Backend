@@ -71,7 +71,7 @@ export class Logger {
         );
     }
 
-    static error(message: string, error: Error, { sepStart, sepEnd }: ISeparatorOptions = {}): void {
+    static error(message: string | null, error: Error, { sepStart, sepEnd }: ISeparatorOptions = {}): void {
         const reason: string = error ? error.message : '';
         const stack: string = error && error?.stack ? error.stack : '';
         const color = ANSI.getCode('error');
@@ -79,7 +79,7 @@ export class Logger {
         this.showLog(
             'error',
             [
-                this.formatMessage('error', `${message}`, { format: color }),
+                this.formatMessage('error', `${message ?? ''}`, { format: color }),
                 `  ${color + ANSI.getCode('underline')}REASON:${this.resetFormatCode} ${reason}`,
                 `  ${color + ANSI.getCode('underline')}STACK:${this.resetFormatCode} ${stack}`,
             ],

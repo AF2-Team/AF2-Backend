@@ -1,32 +1,39 @@
 import { ControllerBase } from '@bases/controller.base.js';
-import { Request, Response } from 'express';
 import MessageService from './_.service.js';
+import { AuthError } from '@errors/auth.error.js';
 
 class MessageController extends ControllerBase {
-    async send(req: Request, res: Response) {
-        const user = this.getUser<{ userId: string }>();
+    async sendMessage() {
+        const user = this.getUser<{ _id: string }>();
+        if (!user) throw new AuthError('Unauthorized');
+
         const conversationId = this.requireParam('conversationId');
         const text = this.requireBodyField('text');
-        const result = await MessageService.sendMessage(conversationId, user.userId, text);
 
-        return this.created(result, 'Message sent');
+        const result = await MessageService.sendMessage(conversationId, user._id, text);
+
+        this.created(result, 'Message sent');
     }
 
-    async list(req: Request, res: Response) {
+    async getMessages() {
+        const user = this.getUser<{ _id: string }>();
+        if (!user) throw new AuthError('Unauthorized');
+
         const conversationId = this.requireParam('conversationId');
         const options = this.getQueryFilters();
-        const result = await MessageService.getMessages(conversationId, options);
 
-        return this.success(result);
+        const result = await MessageService.getMessages(conversationId, user._id, options);
+        this.success(result);
     }
 
-    async markRead(req: Request, res: Response) {
-        const user = this.getUser<{ userId: string }>();
+    async markMessagesAsRead() {
+        const user = this.getUser<{ _id: string }>();
+        if (!user) throw new AuthError('Unauthorized');
+
         const conversationId = this.requireParam('conversationId');
+        await MessageService.markAsRead(conversationId, user._id);
 
-        await MessageService.markAsRead(conversationId, user.userId);
-
-        return this.success({ read: true });
+        this.success({ read: true });
     }
 }
 

@@ -4,8 +4,9 @@ import { AuthMiddleware } from '@middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.post('/:postId', AuthMiddleware.authenticate, FavoriteController.add);
-router.delete('/:postId', AuthMiddleware.authenticate, FavoriteController.remove);
-router.get('/me', AuthMiddleware.authenticate, FavoriteController.me);
+router.post('/posts/:postId', AuthMiddleware.authenticate, FavoriteController.addFavorite);
+router.delete('/posts/:postId', AuthMiddleware.authenticate, FavoriteController.removeFavorite);
+router.get('/me', AuthMiddleware.authenticate, FavoriteController.getMyFavorites);
 
 export default router;
+

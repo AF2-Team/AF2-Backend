@@ -1,90 +1,152 @@
 import { BaseService } from '@bases/service.base.js';
 import { Database } from '@database/index.js';
-import { ValidationError } from '@errors';
+import { ValidationError, NotFoundError } from '@errors';
+import NotificationService from '@modules/social/notification/_.service.js';
 
 class InteractionService extends BaseService {
-    async like(userId: string, postId: string) {
-        const repo = Database.repository('main', 'interaction');
+    private getInteractionRepo() {
+        return Database.repository('main', 'interaction');
+    }
 
-        const exists = await repo.getOne({
+    private getPostRepo() {
+        return Database.repository('main', 'post');
+    }
+
+    async likePost(userId: string, postId: string) {
+        this.validateRequired({ userId, postId }, ['userId', 'postId']);
+
+        const interactionRepo = this.getInteractionRepo();
+        const postRepo = this.getPostRepo();
+
+        const post = await postRepo.getById(postId);
+        if (!post || post.status !== 1) {
+            throw new NotFoundError('Post', postId);
+        }
+
+        const existing = await interactionRepo.getOne({
             user: userId,
             post: postId,
             type: 'like',
             status: 1,
         });
 
-        if (exists) return { liked: true };
+        if (existing) {
+            return { liked: true, alreadyLiked: true };
+        }
 
-        await repo.create({
+        await interactionRepo.create({
             user: userId,
             post: postId,
             type: 'like',
             status: 1,
         });
+
+        await postRepo.update(postId, {
+            likesCount: (post.likesCount || 0) + 1,
+        });
+
+        if (post.user.toString() !== userId) {
+            await NotificationService.notify({
+                user: post.user.toString(),
+                actor: userId,
+                type: 'like',
+                entityId: postId,
+            });
+        }
 
         return { liked: true };
     }
 
-    async unlike(userId: string, postId: string) {
-        const repo = Database.repository('main', 'interaction');
+    async unlikePost(userId: string, postId: string) {
+        this.validateRequired({ userId, postId }, ['userId', 'postId']);
 
-        const like = await repo.getOne({
+        const interactionRepo = this.getInteractionRepo();
+        const postRepo = this.getPostRepo();
+
+        const like = await interactionRepo.getOne({
             user: userId,
             post: postId,
             type: 'like',
             status: 1,
         });
 
-        if (!like) return { unliked: false };
+        if (!like) {
+            return { unliked: false, notLiked: true };
+        }
 
-        await repo.update(like._id.toString(), { status: 0 });
+        await interactionRepo.update(like._id.toString(), { status: 0 });
+
+        const post = await postRepo.getById(postId);
+        if (post) {
+            await postRepo.update(postId, {
+                likesCount: Math.max(0, (post.likesCount || 0) - 1),
+            });
+        }
+
         return { unliked: true };
     }
 
-    async comment(userId: string, postId: string, text: string) {
-        this.validateRequired({ text }, ['text']);
+    async createComment(userId: string, postId: string, text: string) {
+        this.validateRequired({ userId, postId, text }, ['userId', 'postId', 'text']);
 
-        const repo = Database.repository('main', 'interaction');
+        if (text.trim().length === 0) {
+            throw new ValidationError('Comment text cannot be empty');
+        }
 
-        return repo.create({
+        if (text.length > 500) {
+            throw new ValidationError('Comment cannot exceed 500 characters');
+        }
+
+        const interactionRepo = this.getInteractionRepo();
+        const postRepo = this.getPostRepo();
+
+        const post = await postRepo.getById(postId);
+        if (!post || post.status !== 1) {
+            throw new NotFoundError('Post', postId);
+        }
+
+        const comment = await interactionRepo.create({
             user: userId,
             post: postId,
             type: 'comment',
-            text,
+            text: text.trim(),
             status: 1,
         });
+
+        await postRepo.update(postId, {
+            commentsCount: (post.commentsCount || 0) + 1,
+        });
+
+        if (post.user.toString() !== userId) {
+            await NotificationService.notify({
+                user: post.user.toString(),
+                actor: userId,
+                type: 'comment',
+                entityId: postId,
+            });
+        }
+
+        return comment;
     }
 
     async getComments(postId: string, options: any) {
-        const repo = Database.repository('main', 'interaction');
+        this.validateRequired({ postId }, ['postId']);
 
-        return repo.getAllActive(options, {
+        const interactionRepo = this.getInteractionRepo();
+
+        const postRepo = this.getPostRepo();
+        const post = await postRepo.getById(postId);
+        if (!post) {
+            throw new NotFoundError('Post', postId);
+        }
+
+        const result = await interactionRepo.getAllActive(options, {
             post: postId,
             type: 'comment',
             status: 1,
         });
-    }
 
-    async repost(userId: string, postId: string) {
-        const repo = Database.repository('main', 'interaction');
-
-        const exists = await repo.getOne({
-            user: userId,
-            post: postId,
-            type: 'repost',
-            status: 1,
-        });
-
-        if (exists) return { reposted: true };
-
-        await repo.create({
-            user: userId,
-            post: postId,
-            type: 'repost',
-            status: 1,
-        });
-
-        return { reposted: true };
+        return result;
     }
 }
 

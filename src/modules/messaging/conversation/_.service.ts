@@ -1,16 +1,27 @@
 import { BaseService } from '@bases/service.base.js';
 import { Database } from '@database/index.js';
-import { NotFoundError } from '@errors/not-found.error.js';
 import { ProcessedQueryFilters } from '@rules/api-query.type.js';
+import { ValidationError, NotFoundError } from '@errors';
 
 class ConversationService extends BaseService {
+    private getConversationRepo() {
+        return Database.repository('main', 'conversation');
+    }
+
+    private getMessageRepo() {
+        return Database.repository('main', 'message');
+    }
+
+    private getUserRepo() {
+        return Database.repository('main', 'user');
+    }
+
     async getUserConversations(userId: string, options: ProcessedQueryFilters) {
         this.validateRequired({ userId }, ['userId']);
 
-        const conversationRepo = Database.repository('main', 'conversation');
-        const messageRepo = Database.repository('main', 'message') as any;
+        const conversationRepo = this.getConversationRepo();
 
-        const conversations = await conversationRepo.getAll(
+        return conversationRepo.getAllActive(
             {
                 ...options,
                 order: [['lastMessageAt', 'desc']],
@@ -20,28 +31,17 @@ class ConversationService extends BaseService {
                 status: 1,
             },
         );
-
-        for (const convo of conversations) {
-            const unread = await messageRepo.model.countDocuments({
-                conversation: convo.id,
-                sender: { $ne: userId },
-                readBy: { $ne: userId },
-                status: 1,
-            });
-
-            convo.unreadCount = unread;
-        }
-
-        return conversations;
     }
 
     async getConversation(conversationId: string) {
         this.validateRequired({ conversationId }, ['conversationId']);
 
-        const conversationRepo = Database.repository('main', 'conversation');
+        const conversationRepo = this.getConversationRepo();
         const conversation = await conversationRepo.getById(conversationId);
 
-        if (!conversation) throw new NotFoundError('Conversation not found');
+        if (!conversation || conversation.status !== 1) {
+            throw new NotFoundError('Conversation', conversationId);
+        }
 
         return conversation;
     }
@@ -49,31 +49,42 @@ class ConversationService extends BaseService {
     async markAsRead(conversationId: string, userId: string) {
         this.validateRequired({ conversationId, userId }, ['conversationId', 'userId']);
 
-        const conversationRepo = Database.repository('main', 'conversation');
+        const conversationRepo = this.getConversationRepo();
+
+        const conversation = await conversationRepo.getById(conversationId);
+        if (!conversation || conversation.status !== 1) {
+            throw new NotFoundError('Conversation', conversationId);
+        }
 
         return conversationRepo.update(conversationId, {
             lastReadBy: userId,
+            lastReadAt: new Date(),
         });
     }
 
     async createConversation(creatorId: string, participantId: string) {
         this.validateRequired({ creatorId, participantId }, ['creatorId', 'participantId']);
 
-        if (creatorId === participantId) throw new Error('Cannot create conversation with yourself');
+        if (creatorId === participantId) {
+            throw new ValidationError('Cannot create conversation with yourself');
+        }
 
-        const conversationRepo = Database.repository('main', 'conversation');
+        const conversationRepo = this.getConversationRepo();
 
-        // Buscar conversación existente entre ambos
         const existing = await conversationRepo.getOne({
             participants: { $all: [creatorId, participantId] },
             status: 1,
         });
 
-        if (existing) return existing;
+        if (existing) {
+            return existing;
+        }
 
         return conversationRepo.create({
             participants: [creatorId, participantId],
             lastMessageAt: null,
+            lastReadBy: null,
+            lastReadAt: null,
             status: 1,
         });
     }

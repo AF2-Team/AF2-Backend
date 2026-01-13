@@ -1,34 +1,35 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import NotificationService from './_.service.js';
+import { AuthError } from '@errors/auth.error.js';
 
 class NotificationController extends ControllerBase {
-    list = async () => {
+    async list() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) this.throwValidationError('Unauthorized');
+        if (!user) throw new AuthError('Unauthorized');
 
         const options = this.getQueryFilters();
         const result = await NotificationService.list(user._id, options);
 
-        return this.success(result);
-    };
+        this.success(result);
+    }
 
-    markRead = async () => {
+    async markRead() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) this.throwValidationError('Unauthorized');
+        if (!user) throw new AuthError('Unauthorized');
 
         const notificationId = this.requireParam('id');
         const result = await NotificationService.markRead(user._id, notificationId);
 
-        return this.success(result);
-    };
+        this.success(result);
+    }
 
-    markAllRead = async () => {
+    async markAllRead() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) this.throwValidationError('Unauthorized');
+        if (!user) throw new AuthError('Unauthorized');
 
         await NotificationService.markAllRead(user._id);
-        return this.success({ read: true });
-    };
+        this.success({ read: true });
+    }
 }
 
 export default new NotificationController();

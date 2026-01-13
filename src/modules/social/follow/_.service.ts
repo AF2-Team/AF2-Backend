@@ -16,7 +16,6 @@ class FollowService extends BaseService {
         if (existingFollowing) {
             if(existingFollowing.status === 1) {
                 return {followed: true};
-                throw new ValidationError('You are already following this user');
             }
             
             await FollowRepository.reactivate(existingFollowing._id);
@@ -28,7 +27,12 @@ class FollowService extends BaseService {
 
         }
 
-        await FollowRepository.createFollow(followerId, targetUserId, 'User');
+        await repo.create({
+            follower: followerId,
+            target: targetUserId,
+            targetModel: 'User',
+            status: 1,
+        });
 
         await userRepo.update(targetUserId, { $inc: { followersCount: 1 } });
         await userRepo.update(followerId, { $inc: { followingCount: 1 } });

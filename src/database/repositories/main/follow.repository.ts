@@ -11,9 +11,10 @@ class FollowRepository extends MongooseRepositoryBase<typeof FollowModel> {
 
     async createFollow(followerId: string, targetId: string, targetModel: FollowTargetType = 'User') {
         return this.create({
-            follower: followerId,
-            target: targetId,
+            follower: new mongoose.Types.ObjectId(followerId) as any,
+            target: new mongoose.Types.ObjectId(targetId) as any,
             targetModel,
+            status: 1,
         });
     }
 
@@ -106,6 +107,9 @@ class FollowRepository extends MongooseRepositoryBase<typeof FollowModel> {
                     user: {
                         id: '$user._id',
                         name: '$user.name',
+                        username: '$user.username',
+                        avatarUrl: '$user.avatarUrl',
+                        bio: '$user.bio',
                         email: '$user.email',
                     },
                 },

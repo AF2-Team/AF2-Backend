@@ -27,12 +27,7 @@ class FollowService extends BaseService {
 
         }
 
-        await repo.create({
-            follower: followerId,
-            target: targetUserId,
-            targetModel: 'User',
-            status: 1,
-        });
+        await FollowRepository.createFollow(followerId, targetUserId, 'User');
 
         await userRepo.update(targetUserId, { $inc: { followersCount: 1 } });
         await userRepo.update(followerId, { $inc: { followingCount: 1 } });
@@ -72,12 +67,7 @@ class FollowService extends BaseService {
     async followTag(userId: string, tagId: string) {
         const repo = Database.repository('main', 'follow');
 
-        const existingFollowing = await repo.getOne({
-            follower: userId,
-            target: tagId,
-            targetModel: 'Tag',
-            status: 1,
-        });
+        const existingFollowing: any = await FollowRepository.findRelationship(userId, tagId, 'Tag');
 
         if (existingFollowing) return { followed: true };
 

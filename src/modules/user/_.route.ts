@@ -6,18 +6,31 @@ import { UploadMiddleware } from '@middlewares/upload.middleware.js';
 const router = Router();
 
 router.get('/me', AuthMiddleware.authenticate, UserController.getMe);
-router.get('/username/:username', UserController.getByUsername);
+router.get('/username/:username', AuthMiddleware.authenticate, UserController.getByUsername);
 
 // Perfil propio
 router.put('/me', AuthMiddleware.authenticate, UserController.updateMe);
 router.delete('/me', AuthMiddleware.authenticate, UserController.deleteMe);
 
-router.patch('/me/avatar', AuthMiddleware.authenticate, UploadMiddleware.memory.single('media'), UserController.uploadAvatar);
-router.patch('/me/cover', AuthMiddleware.authenticate, UploadMiddleware.memory.single('media'), UserController.uploadAvatar);
+router.patch(
+    '/me/avatar',
+    AuthMiddleware.authenticate,
+    UploadMiddleware.memory.single('media'),
+    UserController.uploadAvatar,
+);
+router.patch(
+    '/me/cover',
+    AuthMiddleware.authenticate,
+    UploadMiddleware.memory.single('media'),
+    UserController.uploadAvatar,
+);
 
 
-// Contenido del usuario
-router.get('/:id', UserController.getById);
+router.get(
+    '/:id', 
+    AuthMiddleware.authenticate, 
+    UserController.getById
+);
 router.get('/:id/posts', UserController.posts);
 router.get('/:id/reposts', UserController.reposts);
 router.get('/:id/favorites', UserController.favorites);

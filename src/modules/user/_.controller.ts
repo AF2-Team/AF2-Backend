@@ -34,11 +34,9 @@ class UserController extends ControllerBase {
 
         if (!profile) throw new NotFoundError('User profile not found');
 
-        // 2. "Aplanamos" la respuesta.
-        // Sacamos todo de 'profile.user' y le agregamos los contadores de 'profile.stats'
-        // para que Android reciba un solo JSON con todo junto.
+        const userPlain = profile.user.toObject ? profile.user.toObject() : profile.user;
         const flatResponse = {
-            ...profile.user, // _id, name, username, email, avatarUrl, bio
+            ...userPlain, // _id, name, username, email, avatarUrl, bio
             postsCount: profile.stats.posts,
             followersCount: profile.stats.followers,
             followingCount: profile.stats.following

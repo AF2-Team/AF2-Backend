@@ -1,12 +1,12 @@
 import mongoose from 'mongoose';
-import FollowModel from '@database/models/main/follow.model.js';
+import FollowModel, {Follow} from '@database/models/main/follow.model.js';
 import { MongooseRepositoryBase } from '@database/repositories/bases/mongoose.repository.js';
 
 type FollowTargetType = 'User' | 'Tag';
 
-class FollowRepository extends MongooseRepositoryBase<typeof FollowModel> {
+class FollowRepository extends MongooseRepositoryBase<Follow> {
     constructor() {
-        super(FollowModel);
+        super(FollowModel as any);
     }
 
     async createFollow(followerId: string, targetId: string, targetModel: FollowTargetType = 'User') {

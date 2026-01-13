@@ -10,10 +10,16 @@ class UserRepository extends MongooseRepositoryBase<User> {
         return this.model.findOne({ email, status: 1 }).select('+password').exec();
     }
 
+
     async updateSocialCount(userId: string, type: 'followers' | 'following', amount: number) {
         const field = type === 'followers' ? 'followersCount' : 'followingCount';
         return this.model.updateOne({ _id: userId }, { $inc: { [field]: amount } }).exec();
     }
+
+    async findAnything(id: string) {
+    // Aquí sí tienes acceso a this.model
+    return this.model.findById(id).select('+password').exec();
+}
 }
 
 export default new UserRepository();

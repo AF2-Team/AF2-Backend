@@ -1,29 +1,23 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import { Request, Response } from 'express';
 import UserService from './_.service.js';
-import { ValidationError } from '@errors';
+import UserRepository from '@repositories/main/user.repository.js'; // Importante para getMe
+import { ValidationError, NotFoundError } from '@errors';
 
 class UserController extends ControllerBase {
+    
     getById = async (req: Request, _res: Response) => {
-        try {
-        console.log("1. Entrando al controlador");
         const { id } = req.params;
-        
-        const result = await UserService.getProfileById(id);
-        console.log("2. Servicio terminó con éxito");
-        
-        return _res.json({ success: true, data: result });
-    } catch (error: any) {
-        console.error("❌ ERROR CAPTURADO EN CONTROLADOR:", error.message);
-        return _res.status(500).json({ success: false, error: error.message });
-    }
-        /*const { id } = req.params;
+        // Obtenemos el ID del que mira (si está logueado) para saber si le da follow, etc.
         const viewerId = (req as any).user?._id?.toString();
 
         const result = await UserService.getProfileById(id, viewerId);
-        if (!result) throw new ValidationError('User not found');
+        
+        if (!result) {
+            throw new NotFoundError('User not found');
+        }
 
-        this.success(result);*/
+        this.success(result);
     };
 
     getByUsername = async (req: Request, _res: Response) => {
@@ -31,19 +25,37 @@ class UserController extends ControllerBase {
         const viewerId = (req as any).user?._id?.toString();
 
         const result = await UserService.getProfileByUsername(username, viewerId);
-        if (!result) throw new ValidationError('User not found');
+        
+        if (!result) {
+            throw new NotFoundError('User not found');
+        }
 
         this.success(result);
     };
 
+    // --- CORREGIDO PARA EVITAR EL CRASH DE KOTLIN ---
     getMe = async (req: Request, _res: Response) => {
-       
-        const userId = (req as any).user._id.toString();
-        
-        if (!userId) throw new ValidationError('Invalidad session data');
-        
-        const result = await UserService.getProfileById(userId, userId);
-        this.success(result);
+        const tokenUser = (req as any).user;
+        if (!tokenUser) throw new ValidationError('Invalid session');
+
+        const userId = tokenUser._id || tokenUser.userId || tokenUser.id;
+
+        // 1. Llamamos al servicio para obtener contadores y datos
+        const profile = await UserService.getProfileById(userId.toString(), userId.toString());
+
+        if (!profile) throw new NotFoundError('User profile not found');
+
+        // 2. "Aplanamos" la respuesta.
+        // Sacamos todo de 'profile.user' y le agregamos los contadores de 'profile.stats'
+        // para que Android reciba un solo JSON con todo junto.
+        const flatResponse = {
+            ...profile.user, // _id, name, username, email, avatarUrl, bio
+            postsCount: profile.stats.posts,
+            followersCount: profile.stats.followers,
+            followingCount: profile.stats.following
+        };
+
+        this.success(flatResponse);
     };
 
     updateMe = async (req: Request, _res: Response) => {

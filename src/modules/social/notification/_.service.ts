@@ -42,7 +42,20 @@ class NotificationService extends BaseService {
     async markAllRead(userId: string) {
         this.validateRequired({ userId }, ['userId']);
 
-        await (this.repo() as any).model.updateMany({ user: userId, readAt: null }, { $set: { readAt: new Date() } });
+        const notifications = await this.repo().getAllActive(
+            {},
+            {
+                user: userId,
+                readAt: null,
+                status: 1,
+            },
+        );
+
+        for (const notification of notifications) {
+            await this.repo().update(notification._id.toString(), {
+                readAt: new Date(),
+            });
+        }
 
         return true;
     }

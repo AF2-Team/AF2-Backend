@@ -18,62 +18,6 @@ class PostService extends BaseService {
         return Database.repository('main', 'interaction');
     }
 
-    // --- MAPPER MANUAL DE SEGURIDAD ---
-    // Construimos la respuesta "a mano" para garantizar que sea JSON puro.
-    // Esto elimina 100% el error de RangeError.
-    private async buildSafeResponse(postDoc: any) {
-        if (!postDoc) return null;
-
-        // 1. Obtenemos datos del autor aparte para evitar usar .populate() recursivo
-        let authorData = postDoc.user;
-        
-        // Si 'user' es solo un ID (string u ObjectId), buscamos el usuario
-        if (authorData && (typeof authorData === 'string' || authorData.constructor.name === 'ObjectId')) {
-            const userRepo = Database.repository('main', 'user');
-            const user = await userRepo.getById(authorData.toString());
-            if (user) {
-                // Mapeamos solo lo necesario del usuario
-                authorData = {
-                    _id: user._id,
-                    name: user.name,
-                    username: user.username,
-                    avatarUrl: user.avatarUrl
-                };
-            }
-        } else if (authorData && authorData._id) {
-            // Si ya venía poblado, lo limpiamos también
-            authorData = {
-                _id: authorData._id,
-                name: authorData.name,
-                username: authorData.username,
-                avatarUrl: authorData.avatarUrl
-            };
-        }
-
-        // 2. Retornamos UN OBJETO NUEVO (Literal Object)
-        return {
-            _id: postDoc._id,
-            text: postDoc.text,
-            url: postDoc.url,
-            media: postDoc.media ? postDoc.media : [], // Aseguramos array
-            mediaUrl: postDoc.mediaUrl, // Legacy
-            mediaId: postDoc.mediaId,   // Legacy
-            tags: postDoc.tags,
-            type: postDoc.type,
-            status: postDoc.status,
-            publishStatus: postDoc.publishStatus,
-            fontStyle: postDoc.fontStyle,
-            createdAt: postDoc.createdAt,
-            updatedAt: postDoc.updatedAt,
-            user: authorData, // Aquí va el usuario limpio
-            
-            // Campos calculados por si acaso (inicializados en 0)
-            likesCount: postDoc.likesCount || 0,
-            commentsCount: postDoc.commentsCount || 0,
-            repostsCount: postDoc.repostsCount || 0
-        };
-    }
-
     async createPost(data: any, files?: any[]) {
         this.validateRequired(data, ['user']);
 
@@ -87,9 +31,11 @@ class PostService extends BaseService {
 
         const mediaList: Array<{ url: string; fileId: string }> = [];
 
-        // 1. Subida
         if (files && Array.isArray(files) && files.length > 0) {
-            if (files.length > 5) throw new ValidationError('Maximum 5 media files allowed');
+            if (files.length > 5) {
+                throw new ValidationError('Maximum 5 media files allowed per post');
+            }
+
             for (const file of files) {
                 const res = (await ImageKitService.upload(file, 'posts')) as any;
                 if (res?.url && res?.fileId) {
@@ -108,18 +54,29 @@ class PostService extends BaseService {
             throw new ValidationError('Post text cannot exceed 4000 characters');
         }
 
-        // 2. Hashtags
         const normalizedTags: string[] = [];
+
         if (hasText) {
             const extracted = extractHashtags(text);
+
             for (const rawTag of extracted) {
                 const normalized = normalizeHashtag(rawTag);
+
                 let tag = await tagRepo.getOne({ normalized });
+
                 if (!tag) {
-                    tag = await tagRepo.create({ name: rawTag, normalized, postsCount: 1, status: 1 });
+                    tag = await tagRepo.create({
+                        name: rawTag,
+                        normalized,
+                        postsCount: 1,
+                        status: 1,
+                    });
                 } else {
-                    await tagRepo.update(tag.id, { postsCount: (tag.postsCount || 0) + 1 });
+                    await tagRepo.update(tag.id, {
+                        postsCount: (tag.postsCount || 0) + 1,
+                    });
                 }
+
                 normalizedTags.push(normalized);
             }
         }
@@ -141,22 +98,37 @@ class PostService extends BaseService {
             postData.mediaId = mediaList[0].fileId;
         }
 
-        // 3. Crear en DB
         const newPost = await postRepo.create(postData);
 
-        // 4. RETORNO MANUAL SEGURO
-        return await this.buildSafeResponse(newPost);
+        try {
+            const repo = postRepo as any;
+            if (repo.getByIdPopulated) {
+                return (await repo.getByIdPopulated(newPost._id.toString())) || newPost;
+            }
+        } catch {
+            // Continuar sin población
+        }
+
+        return newPost;
     }
 
     async getPostById(postId: string) {
         this.validateRequired({ postId }, ['postId']);
-        const postRepo = this.getPostRepo();
-        const post = await postRepo.getById(postId);
-        
-        if (!post) throw new NotFoundError('Post', postId);
 
-        // Usamos el builder también aquí para consistencia
-        return await this.buildSafeResponse(post);
+        const postRepo = this.getPostRepo();
+        const repo = postRepo as any;
+
+        if (repo.getByIdPopulated) {
+            const post = await repo.getByIdPopulated(postId);
+            if (post) return post;
+        }
+
+        const post = await postRepo.getById(postId);
+        if (!post || post.status !== 1) {
+            throw new NotFoundError('Post', postId);
+        }
+
+        return post;
     }
 
     async createRepost(userId: string, originalPostId: string) {
@@ -197,31 +169,37 @@ class PostService extends BaseService {
                     type: 'repost',
                     entityId: originalPostId,
                 });
-            } catch { }
+            } catch {
+                // Continuar sin notificación
+            }
         }
 
-        // RETORNO MANUAL SEGURO
-        return await this.buildSafeResponse(repost);
+        return repost;
     }
 
-    // --- Getters que retornan Listas ---
-    // Los repositorios suelen manejar bien las listas con .lean() interno, 
-    // pero si fallan, se les puede aplicar un map(p => buildSafeResponse(p))
-    
     async getReposts(postId: string, options: any) {
         this.validateRequired({ postId }, ['postId']);
         const postRepo = this.getPostRepo();
-        return postRepo.getAllActive(options, { originalPost: postId, type: 'repost', status: 1 });
+        return postRepo.getAllActive(options, {
+            originalPost: postId,
+            type: 'repost',
+            status: 1,
+        });
     }
 
     async getLikes(postId: string, options: any) {
         this.validateRequired({ postId }, ['postId']);
         const interactionRepo = this.getInteractionRepo();
-        return interactionRepo.getAllActive(options, { post: postId, type: 'like', status: 1 });
+        return interactionRepo.getAllActive(options, {
+            post: postId,
+            type: 'like',
+            status: 1,
+        });
     }
 
     async getInteractions(postId: string) {
         this.validateRequired({ postId }, ['postId']);
+
         const postRepo = this.getPostRepo();
         const interactionRepo = this.getInteractionRepo();
 
@@ -234,11 +212,17 @@ class PostService extends BaseService {
             postRepo.count({ originalPost: postId, type: 'repost', status: 1 }),
         ]);
 
-        return { likes, comments, reposts, favorites: post.favoritesCount || 0 };
+        return {
+            likes,
+            comments,
+            reposts,
+            favorites: post.favoritesCount || 0,
+        };
     }
 
     async updatePost(postId: string, userId: string, data: any) {
         this.validateRequired({ postId, userId }, ['postId', 'userId']);
+
         const postRepo = this.getPostRepo();
         const post = await postRepo.getById(postId);
 
@@ -250,28 +234,32 @@ class PostService extends BaseService {
 
         if (payload.text !== undefined) {
             const newText = String(payload.text).trim();
-            if (newText.length > 4000) throw new ValidationError('Text too long');
-            
-            if (!newText && !post.url && (!post.media || post.media.length === 0))
-                throw new ValidationError('Post cannot be empty');
+            if (newText.length > 4000) throw new ValidationError('Post text cannot exceed 4000 characters');
+            if (!newText && !post.url && !post.media?.length)
+                throw new ValidationError('Post must contain text, URL, or media');
 
             payload.text = newText;
+
             if (newText !== (post.text || '')) {
                 const extracted = extractHashtags(newText);
                 payload.tags = extracted.map(normalizeHashtag);
             }
         }
+
         return postRepo.update(postId, payload);
     }
 
     async deletePost(postId: string, userId: string) {
+        this.validateRequired({ postId, userId }, ['postId', 'userId']);
+
         const postRepo = this.getPostRepo();
         const post = await postRepo.getById(postId);
+
         if (!post) throw new NotFoundError('Post', postId);
         if (post.user.toString() !== userId) throw new ValidationError('Unauthorized');
-        
+
         await postRepo.update(postId, { status: 0 });
-        
+
         if (post.tags?.length) {
             const tagRepo = this.getTagRepo();
             for (const tagName of post.tags) {
@@ -281,44 +269,82 @@ class PostService extends BaseService {
                 }
             }
         }
+
         return { deleted: true };
     }
 
     async addMedia(postId: string, userId: string, file: any) {
+        this.validateRequired({ postId, userId, file }, ['postId', 'userId', 'file']);
+
         const postRepo = this.getPostRepo();
         const post = await postRepo.getById(postId);
+
         if (!post || post.status !== 1) throw new NotFoundError('Post', postId);
         if (post.user.toString() !== userId) throw new ValidationError('Unauthorized');
 
         const res = (await ImageKitService.upload(file, 'posts')) as any;
+        if (!res?.url || !res?.fileId) throw new ValidationError('Failed to upload media');
+
         const currentMedia = Array.isArray(post.media) ? post.media : [];
         const updatedMedia = [...currentMedia, { url: res.url, fileId: res.fileId }];
 
-        return postRepo.update(postId, { media: updatedMedia });
+        return postRepo.update(postId, {
+            media: updatedMedia,
+            mediaUrl: updatedMedia[0]?.url || null,
+            mediaId: updatedMedia[0]?.fileId || null,
+        });
     }
 
     async getPostsByUser(userId: string, options: any) {
-        return this.getPostRepo().getAllActive(options, { user: userId, type: 'post', publishStatus: 'published', status: 1 });
+        this.validateRequired({ userId }, ['userId']);
+        const postRepo = this.getPostRepo();
+        return postRepo.getAllActive(options, {
+            user: userId,
+            type: 'post',
+            publishStatus: 'published',
+            status: 1,
+        });
     }
 
     async getPostsByTag(tagName: string, options: any) {
-        return this.getPostRepo().getAllActive(options, { tags: normalizeHashtag(tagName), publishStatus: 'published', status: 1 });
+        this.validateRequired({ tagName }, ['tagName']);
+        const postRepo = this.getPostRepo();
+        const normalizedTag = normalizeHashtag(tagName);
+        return postRepo.getAllActive(options, {
+            tags: normalizedTag,
+            publishStatus: 'published',
+            status: 1,
+        });
     }
 
     async getTagInfo(name: string) {
-        return this.getTagRepo().getOne({ $or: [{ name }, { normalized: normalizeHashtag(name) }], status: 1 });
+        this.validateRequired({ name }, ['name']);
+        const tagRepo = this.getTagRepo();
+        const normalized = normalizeHashtag(name);
+        return tagRepo.getOne({
+            $or: [{ name }, { normalized }],
+            status: 1,
+        });
     }
 
     async getTrendingTags(options: any) {
-        return this.getTagRepo().getAllActive({ ...options, order: [['postsCount', 'desc']] }, { status: 1, postsCount: { $gt: 0 } });
-    }
-    
-    async getFeed(userId: string, page: number = 1) {
-        return this.getPostRepo().getAllActive({ page, limit: 20 }, { publishStatus: 'published' });
-    }
-    
-    async getCombinedFeed(userId: string, options: any) {
-        return this.getPostRepo().getAllActive(options, { publishStatus: 'published' });
+        const tagRepo = this.getTagRepo();
+        const repo = tagRepo as any;
+
+        if (repo.getTrending) {
+            return repo.getTrending(options);
+        }
+
+        return tagRepo.getAllActive(
+            {
+                ...options,
+                order: [['postsCount', 'desc']],
+            },
+            {
+                status: 1,
+                postsCount: { $gt: 0 },
+            },
+        );
     }
 }
 

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { QueryBuilder } from '@utils/query-builder.js';
 import { ApiResponse } from '@rules/api-response.type.js';
 import { PaginationMetadata, ProcessedQueryFilters } from '@rules/api-query.type.js';
-import { AppError, ValidationError, UnknownError, ProblematicResponseError, AuthError } from '@errors';
+import { AppError, NotFoundError, ValidationError, UnknownError, ProblematicResponseError, AuthError } from '@errors';
 import { Validator } from '@utils/validator.util.js';
 
 export abstract class ControllerBase {
@@ -284,5 +284,16 @@ export abstract class ControllerBase {
         const value = Validator.requireArg(this.getRequest().body, fieldName);
 
         return value;
+    }
+
+    /**
+     * Lanza un error de validación explícito.
+     */
+    protected throwValidationError(message: string, details?: any): never {
+        throw new ValidationError(message, details);
+    }
+
+     protected throwNotFoundError(message: string, details?: any): never {
+        throw new NotFoundError(message, details);
     }
 }

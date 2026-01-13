@@ -2,6 +2,8 @@ import { BaseService } from '@bases/service.base.js';
 import { Database } from '@database/index.js';
 import { ProcessedQueryFilters } from '@rules/api-query.type.js';
 import { ValidationError, NotFoundError } from '@errors';
+import { ImageKitService } from '@providers/imagekit.provider.js'
+
 import mongoose from 'mongoose';
 
 class UserService extends BaseService {
@@ -117,9 +119,18 @@ class UserService extends BaseService {
         if (!userId) throw new ValidationError('User id is required');
         if (!file) throw new ValidationError('Avatar file is required');
 
-        const avatarUrl = `/uploads/avatars/${file.filename}`;
+        const avatarUrl = await ImageKitService.upload(file, 'avatars')
 
         return Database.repository('main', 'user').update(userId, { avatarUrl });
+    }
+
+     async updateCover(userId: string, file: Express.Multer.File) {
+        if (!userId) throw new ValidationError('User id is required');
+        if (!file) throw new ValidationError('Avatar file is required');
+
+        const coverUrl = await ImageKitService.upload(file, 'covers')
+
+        return Database.repository('main', 'user').update(userId, { coverUrl});
     }
 
     async getUserPosts(userId: string, options: ProcessedQueryFilters) {

@@ -61,16 +61,28 @@ class UserController extends ControllerBase {
         this.success(result);
     };
 
-    uploadAvatar = async (req: Request, _res: Response) => {
+    async uploadAvatar (req: Request, _res: Response) {
         const userId = (req as any).user._id.toString();
 
         if (!req.file) {
-            throw new Error('Avatar file is required');
+            throw this.throwValidationError('Avatar file is required');
         }
 
         const result = await UserService.updateAvatar(userId, req.file);
-        this.success(result, 'Avatar updated');
+        this.success(result, 'Avatar image updated');
     };
+
+    async uploadCover (req: Request, _res: Response) {
+        const userId = (req as any).user._id.toString();
+
+        if (!req.file) {
+            throw this.throwValidationError('Cover image is required');
+        }
+
+        const result = await UserService.updateCover(userId, req.file);
+        this.success(result, 'Cover image updated');
+    };
+
 
     posts = async (req: Request, _res: Response) => {
         const { id } = req.params;

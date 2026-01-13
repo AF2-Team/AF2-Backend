@@ -22,7 +22,7 @@ router.patch(
     '/me/cover',
     AuthMiddleware.authenticate,
     UploadMiddleware.memory.single('media'),
-    UserController.uploadAvatar,
+    UserController.uploadCover,
 );
 
 

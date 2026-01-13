@@ -31,7 +31,6 @@ class PostService extends BaseService {
 
         const mediaList: Array<{ url: string; fileId: string }> = [];
 
-        // 1. Validaciones de Archivos (Lógica de tu compañero)
         if (files && Array.isArray(files) && files.length > 0) {
             if (files.length > 5) {
                 throw new ValidationError('Maximum 5 media files allowed per post');
@@ -55,8 +54,8 @@ class PostService extends BaseService {
             throw new ValidationError('Post text cannot exceed 4000 characters');
         }
 
-        // 2. Procesamiento de Hashtags
         const normalizedTags: string[] = [];
+
         if (hasText) {
             const extracted = extractHashtags(text);
 
@@ -77,6 +76,7 @@ class PostService extends BaseService {
                         postsCount: (tag.postsCount || 0) + 1,
                     });
                 }
+
                 normalizedTags.push(normalized);
             }
         }
@@ -99,22 +99,17 @@ class PostService extends BaseService {
         }
 
         const newPost = await postRepo.create(postData);
-        let finalPost = newPost;
 
-        // Intentamos poblar (Lógica de tu compañero)
         try {
             const repo = postRepo as any;
             if (repo.getByIdPopulated) {
-                const populated = await repo.getByIdPopulated(newPost._id.toString());
-                if (populated) finalPost = populated;
+                return (await repo.getByIdPopulated(newPost._id.toString())) || newPost;
             }
         } catch {
-            // Continuar sin población si falla
+            // Continuar sin población
         }
 
-        // --- CORRECCIÓN CRÍTICA ---
-        // Convertimos a objeto plano para evitar RangeError: Maximum call stack size exceeded
-        return finalPost.toObject ? finalPost.toObject() : finalPost;
+        return newPost;
     }
 
     async getPostById(postId: string) {
@@ -179,8 +174,7 @@ class PostService extends BaseService {
             }
         }
 
-        // --- CORRECCIÓN CRÍTICA TAMBIÉN AQUÍ ---
-        return repost.toObject ? repost.toObject() : repost;
+        return repost;
     }
 
     async getReposts(postId: string, options: any) {

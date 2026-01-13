@@ -31,6 +31,7 @@ class PostService extends BaseService {
 
         const mediaList: Array<{ url: string; fileId: string }> = [];
 
+        // 1. Validaciones de Archivos (Lógica de tu compañero)
         if (files && Array.isArray(files) && files.length > 0) {
             if (files.length > 5) {
                 throw new ValidationError('Maximum 5 media files allowed per post');
@@ -98,17 +99,22 @@ class PostService extends BaseService {
         }
 
         const newPost = await postRepo.create(postData);
+        let finalPost = newPost;
 
+        // Intentamos poblar (Lógica de tu compañero)
         try {
             const repo = postRepo as any;
             if (repo.getByIdPopulated) {
-                return (await repo.getByIdPopulated(newPost._id.toString())) || newPost;
+                const populated = await repo.getByIdPopulated(newPost._id.toString());
+                if (populated) finalPost = populated;
             }
         } catch {
-            // Continuar sin población
+            // Continuar sin población si falla
         }
 
-        return newPost;
+        // --- CORRECCIÓN CRÍTICA ---
+        // Convertimos a objeto plano para evitar RangeError: Maximum call stack size exceeded
+        return finalPost.toObject ? finalPost.toObject() : finalPost;
     }
 
     async getPostById(postId: string) {
@@ -173,7 +179,8 @@ class PostService extends BaseService {
             }
         }
 
-        return repost;
+        // --- CORRECCIÓN CRÍTICA TAMBIÉN AQUÍ ---
+        return repost.toObject ? repost.toObject() : repost;
     }
 
     async getReposts(postId: string, options: any) {

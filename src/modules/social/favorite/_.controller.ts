@@ -1,36 +1,37 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import FavoriteService from './_.service.js';
+import { AuthError } from '@errors/auth.error.js';
 
 class FavoriteController extends ControllerBase {
-    add = async () => {
+    async addFavorite() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) this.throwValidationError('Unauthorized');
+        if (!user) throw new AuthError('Unauthorized');
 
         const postId = this.requireParam('postId');
-        const result = await FavoriteService.add(user._id, postId);
+        const result = await FavoriteService.addFavorite(user._id, postId);
 
-        return this.created(result, 'Added to favorites');
-    };
+        this.created(result, 'Added to favorites');
+    }
 
-    remove = async () => {
+    async removeFavorite() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) this.throwValidationError('Unauthorized');
+        if (!user) throw new AuthError('Unauthorized');
 
         const postId = this.requireParam('postId');
-        const result = await FavoriteService.remove(user._id, postId);
+        const result = await FavoriteService.removeFavorite(user._id, postId);
 
-        return this.success(result);
-    };
+        this.success(result);
+    }
 
-    me = async () => {
+    async getMyFavorites() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) this.throwValidationError('Unauthorized');
+        if (!user) throw new AuthError('Unauthorized');
 
         const options = this.getQueryFilters();
-        const result = await FavoriteService.list(user._id, options);
+        const result = await FavoriteService.getMyFavorites(user._id, options);
 
-        return this.success(result);
-    };
+        this.success(result);
+    }
 }
 
 export default new FavoriteController();

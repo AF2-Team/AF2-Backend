@@ -1,7 +1,7 @@
 import { BaseService } from '@bases/service.base.js';
 import { Database } from '@database/index.js';
 import { ProcessedQueryFilters } from '@rules/api-query.type.js';
-import { ValidationError } from '@errors';
+import { ValidationError, NotFoundError } from '@errors';
 import mongoose from 'mongoose';
 
 class UserService extends BaseService {
@@ -33,25 +33,23 @@ class UserService extends BaseService {
         const user = await userRepo.getOne({ ...where, status: 1 });
 
         if (!user) {
-            throw new ValidationError('User not found');
+            throw new NotFoundError('User');
         }
 
         const userId = user._id.toString();
 
-        const [posts, followers, following] = await Promise.all([
-            postRepo.count({ user: userId, status: 1 }),
-            followRepo.count({ target: userId, targetType: 'user', status: 1 }),
-            followRepo.count({ follower: userId, targetType: 'user', status: 1 }),
-        ]);
-
+        // Usamos los contadores del usuario para followers/following
+        // Solo contamos posts en tiempo real
+        const posts = await postRepo.count({ user: userId, status: 1 });
 
         let isFollowing = false;
+        const isMe = viewerId === userId;
 
-        if (viewerId && mongoose.Types.ObjectId.isValid(viewerId)) {
+        if (viewerId && mongoose.Types.ObjectId.isValid(viewerId) && !isMe) {
             const exists = await followRepo.getOne({
                 follower: viewerId,
                 target: userId,
-                targetType: 'user',
+                targetModel: 'User',
                 status: 1,
             });
             isFollowing = !!exists;
@@ -59,8 +57,12 @@ class UserService extends BaseService {
 
         return {
             user,
-            stats: { posts, followers, following },
-            viewer: { isFollowing },
+            stats: {
+                posts,
+                followers: user.followersCount,
+                following: user.followingCount,
+            },
+            viewer: { isFollowing, isMe },
         };
     }
 

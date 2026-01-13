@@ -11,10 +11,21 @@ class FollowRepository extends MongooseRepositoryBase<Follow> {
 
     async createFollow(followerId: string, targetId: string, targetModel: FollowTargetType = 'User') {
         return this.create({
-            follower: followerId,
-            target: targetId,
+            follower: new mongoose.Types.ObjectId(followerId) as any,
+            target: new mongoose.Types.ObjectId(targetId) as any,
             targetModel,
+            status: 1,
         });
+    }
+
+    async findRelationship(followerId: string, targetId: string, targetModel: FollowTargetType) {
+        return this.model
+            .findOne({
+                follower: followerId,
+                target: targetId,
+                targetModel,
+            })
+            .exec();
     }
 
     async exists(followerId: string, targetId: string, targetModel: FollowTargetType): Promise<boolean> {
@@ -36,6 +47,10 @@ class FollowRepository extends MongooseRepositoryBase<Follow> {
         });
 
         return (result.deletedCount ?? 0) > 0;
+    }
+
+    async reactivate(id: string) {
+        return this.model.findByIdAndUpdate(id, { status: 1 }, { new: true }).exec();
     }
 
     async getFollowingUsers(userId: string, options: any = {}) {
@@ -92,6 +107,9 @@ class FollowRepository extends MongooseRepositoryBase<Follow> {
                     user: {
                         id: '$user._id',
                         name: '$user.name',
+                        username: '$user.username',
+                        avatarUrl: '$user.avatarUrl',
+                        bio: '$user.bio',
                         email: '$user.email',
                     },
                 },

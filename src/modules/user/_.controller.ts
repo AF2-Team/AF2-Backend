@@ -5,30 +5,19 @@ import UserRepository from '@repositories/main/user.repository.js'; // Important
 import { ValidationError, NotFoundError } from '@errors';
 
 class UserController extends ControllerBase {
-    
-    getById = async (req: Request, _res: Response) => {
-        const { id } = req.params;
-        // Obtenemos el ID del que mira (si está logueado) para saber si le da follow, etc.
-        const viewerId = (req as any).user?._id?.toString();
+    async getById() {
+        const id = this.requireParam('id');
+        const viewerId = (this.getRequest() as any).user?._id?.toString();
 
         const result = await UserService.getProfileById(id, viewerId);
-        
-        if (!result) {
-            throw new NotFoundError('User not found');
-        }
-
         this.success(result);
     };
 
-    getByUsername = async (req: Request, _res: Response) => {
-        const { username } = req.params;
-        const viewerId = (req as any).user?._id?.toString();
+    async getByUsername() {
+        const username = this.requireParam('username');
+        const viewerId = (this.getRequest() as any).user?._id?.toString();
 
         const result = await UserService.getProfileByUsername(username, viewerId);
-        
-        if (!result) {
-            throw new NotFoundError('User not found');
-        }
 
         this.success(result);
     };

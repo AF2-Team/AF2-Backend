@@ -6,8 +6,8 @@ const router = Router();
 
 router.post('/users/:userId', AuthMiddleware.authenticate, FollowController.followUser);
 router.delete('/users/:userId', AuthMiddleware.authenticate, FollowController.unfollowUser);
-router.get('/users/:userId/followers', FollowController.followers);
-router.get('/users/:userId/following', FollowController.following);
+router.get('/users/followers', AuthMiddleware.authenticate, FollowController.getFollowers);
+router.get('/users/following', AuthMiddleware.authenticate, FollowController.getFollowings);
 
 router.post('/tags/:tagId', AuthMiddleware.authenticate, FollowController.followTag);
 router.delete('/tags/:tagId', AuthMiddleware.authenticate, FollowController.unfollowTag);

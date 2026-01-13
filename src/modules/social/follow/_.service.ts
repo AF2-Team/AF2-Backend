@@ -9,22 +9,17 @@ class FollowService extends BaseService {
             throw new ValidationError('User cannot follow itself');
         }
 
-        const repo = Database.repository('main', 'follow');
         const userRepo = Database.repository('main', 'user');
 
-        const existingFollowing = await repo.getOne({
-            follower: followerId,
-            target: targetUserId,
-            targetModel: 'User',
-        });
+        const existingFollowing: any = await FollowRepository.findRelationship(followerId, targetUserId, 'User');
 
         if (existingFollowing) {
             if(existingFollowing.status === 1) {
                 return {followed: true};
             }
-
-            await repo.update(existingFollowing._id, {status: 1});
-
+            
+            await FollowRepository.reactivate(existingFollowing._id);
+          
             await userRepo.update(targetUserId, { $inc: { followersCount: 1 } });
             await userRepo.update(followerId, { $inc: { followingCount: 1 } });
 
@@ -32,12 +27,7 @@ class FollowService extends BaseService {
 
         }
 
-        await repo.create({
-            follower: followerId,
-            target: targetUserId,
-            targetModel: 'User',
-            status: 1,
-        });
+        await FollowRepository.createFollow(followerId, targetUserId, 'User');
 
         await userRepo.update(targetUserId, { $inc: { followersCount: 1 } });
         await userRepo.update(followerId, { $inc: { followingCount: 1 } });
@@ -77,12 +67,7 @@ class FollowService extends BaseService {
     async followTag(userId: string, tagId: string) {
         const repo = Database.repository('main', 'follow');
 
-        const existingFollowing = await repo.getOne({
-            follower: userId,
-            target: tagId,
-            targetModel: 'Tag',
-            status: 1,
-        });
+        const existingFollowing: any = await FollowRepository.findRelationship(userId, tagId, 'Tag');
 
         if (existingFollowing) return { followed: true };
 

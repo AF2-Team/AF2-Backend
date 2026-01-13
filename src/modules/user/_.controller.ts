@@ -1,7 +1,8 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import { Request, Response } from 'express';
 import UserService from './_.service.js';
-import { ValidationError } from '@errors';
+import UserRepository from '@repositories/main/user.repository.js'; // Importante para getMe
+import { ValidationError, NotFoundError } from '@errors';
 
 class UserController extends ControllerBase {
     async getById() {
@@ -21,14 +22,29 @@ class UserController extends ControllerBase {
         this.success(result);
     };
 
+    // --- CORREGIDO PARA EVITAR EL CRASH DE KOTLIN ---
     getMe = async (req: Request, _res: Response) => {
-       
-        const userId = (req as any).user._id.toString();
-        
-        if (!userId) throw new ValidationError('Invalidad session data');
-        
-        const result = await UserService.getProfileById(userId, userId);
-        this.success(result);
+        const tokenUser = (req as any).user;
+        if (!tokenUser) throw new ValidationError('Invalid session');
+
+        const userId = tokenUser._id || tokenUser.userId || tokenUser.id;
+
+        // 1. Llamamos al servicio para obtener contadores y datos
+        const profile = await UserService.getProfileById(userId.toString(), userId.toString());
+
+        if (!profile) throw new NotFoundError('User profile not found');
+
+        // 2. "Aplanamos" la respuesta.
+        // Sacamos todo de 'profile.user' y le agregamos los contadores de 'profile.stats'
+        // para que Android reciba un solo JSON con todo junto.
+        const flatResponse = {
+            ...profile.user, // _id, name, username, email, avatarUrl, bio
+            postsCount: profile.stats.posts,
+            followersCount: profile.stats.followers,
+            followingCount: profile.stats.following
+        };
+
+        this.success(flatResponse);
     };
 
     updateMe = async (req: Request, _res: Response) => {

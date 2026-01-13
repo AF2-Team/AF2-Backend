@@ -61,6 +61,10 @@ export abstract class MongooseRepositoryBase<T> {
         });
     }
 
+    async getAllActive(options: any = {}, filters: Record<string, any> = {}, projection: any = null): Promise<T[]> {
+        return this.getAll(options, filters, projection);
+    }
+
     async getOne(filters: Record<string, any> = {}, projection: any = null): Promise<T | null> {
         return this.execute('getOne', async () => {
             const query = this.buildFilter({

@@ -16,6 +16,9 @@ export type User = {
     resetPasswordToken?: string | null;
     resetPasswordExpires?: Date | null;
 
+    followersCount?: number;
+    followingCount?: number;
+
     status: number;
 };
 
@@ -76,6 +79,18 @@ export default class UserModel extends MongooseModelBase {
                 trim: true,
                 maxlength: 300,
                 default: null,
+            },
+
+            followersCount: { 
+                type: Number, 
+                default: 0, 
+                min: 0 
+            },
+            
+            followingCount: { 
+                type: Number, 
+                default: 0, 
+                min: 0
             },
 
             status: {

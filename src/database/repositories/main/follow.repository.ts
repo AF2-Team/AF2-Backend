@@ -1,33 +1,56 @@
 import mongoose from 'mongoose';
-import FollowModel from '@database/models/main/follow.model.js';
+import FollowModel, {Follow} from '@database/models/main/follow.model.js';
 import { MongooseRepositoryBase } from '@database/repositories/bases/mongoose.repository.js';
 
-type FollowTargetType = 'user' | 'tag';
+type FollowTargetType = 'User' | 'Tag';
 
-class FollowRepository extends MongooseRepositoryBase<typeof FollowModel> {
+class FollowRepository extends MongooseRepositoryBase<Follow> {
     constructor() {
-        super(FollowModel);
+        super(FollowModel as any);
     }
 
-    async exists(followerId: string, targetId: string, targetType: FollowTargetType): Promise<boolean> {
+    async createFollow(followerId: string, targetId: string, targetModel: FollowTargetType = 'User') {
+        return this.create({
+            follower: new mongoose.Types.ObjectId(followerId) as any,
+            target: new mongoose.Types.ObjectId(targetId) as any,
+            targetModel,
+            status: 1,
+        });
+    }
+
+    async findRelationship(followerId: string, targetId: string, targetModel: FollowTargetType) {
+        return this.model
+            .findOne({
+                follower: followerId,
+                target: targetId,
+                targetModel,
+            })
+            .exec();
+    }
+
+    async exists(followerId: string, targetId: string, targetModel: FollowTargetType): Promise<boolean> {
         const result = await this.model.exists({
             follower: followerId,
             target: targetId,
-            targetType,
+            targetModel,
             status: 1,
         });
 
         return !!result;
     }
 
-    async remove(followerId: string, targetId: string, targetType: FollowTargetType): Promise<boolean> {
+    async remove(followerId: string, targetId: string, targetModel: FollowTargetType): Promise<boolean> {
         const result = await this.model.deleteOne({
             follower: followerId,
             target: targetId,
-            targetType,
+            targetModel,
         });
 
         return (result.deletedCount ?? 0) > 0;
+    }
+
+    async reactivate(id: string) {
+        return this.model.findByIdAndUpdate(id, { status: 1 }, { new: true }).exec();
     }
 
     async getFollowingUsers(userId: string, options: any = {}) {
@@ -35,7 +58,7 @@ class FollowRepository extends MongooseRepositoryBase<typeof FollowModel> {
             return this.getUsersByRelation(
                 {
                     follower: new mongoose.Types.ObjectId(userId),
-                    targetType: 'user',
+                    targetModel: 'User',
                 },
                 'target',
                 options,
@@ -48,7 +71,7 @@ class FollowRepository extends MongooseRepositoryBase<typeof FollowModel> {
             return this.getUsersByRelation(
                 {
                     target: new mongoose.Types.ObjectId(userId),
-                    targetType: 'user',
+                    targetModel: 'User',
                 },
                 'follower',
                 options,
@@ -84,6 +107,9 @@ class FollowRepository extends MongooseRepositoryBase<typeof FollowModel> {
                     user: {
                         id: '$user._id',
                         name: '$user.name',
+                        username: '$user.username',
+                        avatarUrl: '$user.avatarUrl',
+                        bio: '$user.bio',
                         email: '$user.email',
                     },
                 },

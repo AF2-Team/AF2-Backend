@@ -18,19 +18,29 @@ class PostService extends BaseService {
         return Database.repository('main', 'interaction');
     }
 
-    // --- HELPER PRIVADO PARA OBTENER OBJETO LIMPIO ---
-    // Esto asegura que devolvemos un JSON puro (lean) y evitamos el error de Stack Size
+    /**
+     * --- MÉTODO SALVAVIDAS ---
+     * Busca el post por ID usando .lean() para asegurar que devuelve un JSON puro.
+     * Esto evita el error "Maximum call stack size exceeded".
+     */
     private async getCleanPost(postId: string) {
         const repo = this.getPostRepo() as any;
+        
+        // Opción A: Acceso directo al modelo Mongoose (Más seguro y rápido)
         if (repo.model) {
             return await repo.model
                 .findById(postId)
                 .populate('user', 'name username avatarUrl') // Poblamos autor
-                .lean(); // <--- LA CLAVE: Objeto JSON puro sin lógica de Mongoose
+                .lean() // <--- ESTO ELIMINA TODA LA BASURA DE MONGOOSE
+                .exec();
         }
-        // Fallback si no podemos acceder al modelo directo
+
+        // Opción B: Fallback genérico (si no hay acceso al modelo)
         const doc = await repo.getById(postId);
-        return doc && doc.toObject ? doc.toObject() : doc;
+        // Construcción manual del JSON para romper referencias circulares
+        if (!doc) return null;
+        
+        return JSON.parse(JSON.stringify(doc));
     }
 
     async createPost(data: any, files?: any[]) {
@@ -46,7 +56,7 @@ class PostService extends BaseService {
 
         const mediaList: Array<{ url: string; fileId: string }> = [];
 
-        // 1. Validaciones y Subida
+        // 1. Subida de Archivos
         if (files && Array.isArray(files) && files.length > 0) {
             if (files.length > 5) throw new ValidationError('Maximum 5 media files allowed');
 
@@ -101,16 +111,14 @@ class PostService extends BaseService {
             postData.mediaId = mediaList[0].fileId;
         }
 
-        // 3. Crear Documento
+        // 3. CREAMOS EL POST (Pero NO devolvemos esta variable)
         const newPost = await postRepo.create(postData);
 
-        // 4. RETORNAR VERSIÓN LIMPIA (LEAN)
-        // Consultamos de nuevo para asegurar que devolvemos un POJO (Plain Old JavaScript Object)
+        // 4. RETORNAMOS LA VERSIÓN LIMPIA (Consultada de cero)
         return await this.getCleanPost(newPost._id.toString());
     }
 
     async getPostById(postId: string) {
-        // Usamos también getCleanPost para coherencia, o el método estándar
         const post = await this.getCleanPost(postId);
         if (!post) throw new NotFoundError('Post', postId);
         return post;
@@ -118,7 +126,6 @@ class PostService extends BaseService {
 
     async createRepost(userId: string, originalPostId: string) {
         this.validateRequired({ userId, originalPostId }, ['userId', 'originalPostId']);
-
         const postRepo = this.getPostRepo();
         const originalPost = await postRepo.getById(originalPostId);
 
@@ -157,22 +164,21 @@ class PostService extends BaseService {
             } catch { }
         }
 
-        // 4. RETORNAR VERSIÓN LIMPIA (LEAN)
+        // RETORNO LIMPIO
         return await this.getCleanPost(repost._id.toString());
     }
 
-    // --- Resto de métodos ---
-
+    // --- Resto de métodos (Getters) ---
+    // Usan el repositorio normal, que para listas suele funcionar bien.
+    
     async getReposts(postId: string, options: any) {
         this.validateRequired({ postId }, ['postId']);
-        const postRepo = this.getPostRepo();
-        return postRepo.getAllActive(options, { originalPost: postId, type: 'repost', status: 1 });
+        return this.getPostRepo().getAllActive(options, { originalPost: postId, type: 'repost', status: 1 });
     }
 
     async getLikes(postId: string, options: any) {
         this.validateRequired({ postId }, ['postId']);
-        const interactionRepo = this.getInteractionRepo();
-        return interactionRepo.getAllActive(options, { post: postId, type: 'like', status: 1 });
+        return this.getInteractionRepo().getAllActive(options, { post: postId, type: 'like', status: 1 });
     }
 
     async getInteractions(postId: string) {
@@ -205,10 +211,10 @@ class PostService extends BaseService {
 
         if (payload.text !== undefined) {
             const newText = String(payload.text).trim();
-            if (newText.length > 4000) throw new ValidationError('Post text cannot exceed 4000 characters');
+            if (newText.length > 4000) throw new ValidationError('Text too long');
             
             if (!newText && !post.url && (!post.media || post.media.length === 0))
-                throw new ValidationError('Post must contain text, URL, or media');
+                throw new ValidationError('Post cannot be empty');
 
             payload.text = newText;
             if (newText !== (post.text || '')) {
@@ -216,7 +222,6 @@ class PostService extends BaseService {
                 payload.tags = extracted.map(normalizeHashtag);
             }
         }
-
         return postRepo.update(postId, payload);
     }
 
@@ -228,7 +233,6 @@ class PostService extends BaseService {
         
         await postRepo.update(postId, { status: 0 });
         
-        // Decrementar contadores de tags
         if (post.tags?.length) {
             const tagRepo = this.getTagRepo();
             for (const tagName of post.tags) {
@@ -255,33 +259,27 @@ class PostService extends BaseService {
     }
 
     async getPostsByUser(userId: string, options: any) {
-        const postRepo = this.getPostRepo();
-        return postRepo.getAllActive(options, { user: userId, type: 'post', publishStatus: 'published', status: 1 });
+        return this.getPostRepo().getAllActive(options, { user: userId, type: 'post', publishStatus: 'published', status: 1 });
     }
 
     async getPostsByTag(tagName: string, options: any) {
-        const postRepo = this.getPostRepo();
-        return postRepo.getAllActive(options, { tags: normalizeHashtag(tagName), publishStatus: 'published', status: 1 });
+        return this.getPostRepo().getAllActive(options, { tags: normalizeHashtag(tagName), publishStatus: 'published', status: 1 });
     }
 
     async getTagInfo(name: string) {
-        const tagRepo = this.getTagRepo();
-        return tagRepo.getOne({ $or: [{ name }, { normalized: normalizeHashtag(name) }], status: 1 });
+        return this.getTagRepo().getOne({ $or: [{ name }, { normalized: normalizeHashtag(name) }], status: 1 });
     }
 
     async getTrendingTags(options: any) {
-        const tagRepo = this.getTagRepo();
-        return tagRepo.getAllActive({ ...options, order: [['postsCount', 'desc']] }, { status: 1, postsCount: { $gt: 0 } });
+        return this.getTagRepo().getAllActive({ ...options, order: [['postsCount', 'desc']] }, { status: 1, postsCount: { $gt: 0 } });
     }
     
     async getFeed(userId: string, page: number = 1) {
-        const postRepo = Database.repository('main', 'post');
-        return postRepo.getAllActive({ page, limit: 20 }, { publishStatus: 'published' });
+        return this.getPostRepo().getAllActive({ page, limit: 20 }, { publishStatus: 'published' });
     }
     
     async getCombinedFeed(userId: string, options: any) {
-        const postRepo = Database.repository('main', 'post');
-        return postRepo.getAllActive(options, { publishStatus: 'published' });
+        return this.getPostRepo().getAllActive(options, { publishStatus: 'published' });
     }
 }
 

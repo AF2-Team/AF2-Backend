@@ -1,33 +1,47 @@
 import { BaseService } from '@bases/service.base.js';
-import MessageRepository from '@database/repositories/main/message.repository.js';
-import ConversationRepository from '@database/repositories/main/conversation.repository.js';
+import { Database } from '@database/index.js';
+import { ValidationError, NotFoundError } from '@errors';
 import NotificationService from '@modules/social/notification/_.service.js';
 
 class MessageService extends BaseService {
+    private getMessageRepo() {
+        return Database.repository('main', 'message');
+    }
+
+    private getConversationRepo() {
+        return Database.repository('main', 'conversation');
+    }
+
     async sendMessage(conversationId: string, senderId: string, text: string) {
         this.validateRequired({ conversationId, senderId, text }, ['conversationId', 'senderId', 'text']);
 
-        const conversation = await ConversationRepository.getById(conversationId);
-        if (!conversation || conversation.status !== 1) throw new Error('Conversation not found');
+        const conversationRepo = this.getConversationRepo();
+        const conversation = await conversationRepo.getById(conversationId);
 
-        if (!conversation.participants.includes(senderId)) throw new Error('Unauthorized');
+        if (!conversation || conversation.status !== 1) {
+            throw new NotFoundError('Conversation', conversationId);
+        }
 
-        const message = await MessageRepository.create({
+        if (!conversation.participants.includes(senderId)) {
+            throw new ValidationError('Unauthorized to send message to this conversation');
+        }
+
+        const messageRepo = this.getMessageRepo();
+
+        const message = await messageRepo.create({
             conversation: conversationId,
             sender: senderId,
-            text,
+            text: text.trim(),
             readBy: [senderId],
             status: 1,
-        } as any);
+        });
 
-        await ConversationRepository.update(conversationId, {
-            lastMessage: text,
+        await conversationRepo.update(conversationId, {
+            lastMessage: text.trim(),
             lastMessageAt: new Date(),
-        } as any);
+        });
 
         for (const participantId of conversation.participants) {
-            if (participantId === senderId) continue;
-
             await NotificationService.notify({
                 user: participantId,
                 actor: senderId,
@@ -39,23 +53,63 @@ class MessageService extends BaseService {
         return message;
     }
 
-    async getMessages(conversationId: string, options: any) {
-        this.validateRequired({ conversationId }, ['conversationId']);
-        return MessageRepository.getByConversation(conversationId, options);
+    async getMessages(conversationId: string, userId: string, options: any) {
+        this.validateRequired({ conversationId, userId }, ['conversationId', 'userId']);
+
+        const conversationRepo = this.getConversationRepo();
+        const conversation = await conversationRepo.getById(conversationId);
+
+        if (!conversation || conversation.status !== 1) {
+            throw new NotFoundError('Conversation', conversationId);
+        }
+
+        if (!conversation.participants.includes(userId)) {
+            throw new ValidationError('Unauthorized to view messages in this conversation');
+        }
+
+        const messageRepo = this.getMessageRepo();
+        return messageRepo.getAllActive(options, {
+            conversation: conversationId,
+            status: 1,
+        });
     }
 
     async markAsRead(conversationId: string, userId: string) {
         this.validateRequired({ conversationId, userId }, ['conversationId', 'userId']);
 
-        await (MessageRepository as any).model.updateMany(
+        const conversationRepo = this.getConversationRepo();
+        const conversation = await conversationRepo.getById(conversationId);
+
+        if (!conversation || conversation.status !== 1) {
+            throw new NotFoundError('Conversation', conversationId);
+        }
+
+        if (!conversation.participants.includes(userId)) {
+            throw new ValidationError('Unauthorized to mark messages as read in this conversation');
+        }
+
+        const messageRepo = this.getMessageRepo();
+
+        const unreadMessages = await messageRepo.getAllActive(
+            {},
             {
                 conversation: conversationId,
+                sender: { $ne: userId },
                 readBy: { $ne: userId },
-            },
-            {
-                $push: { readBy: userId },
+                status: 1,
             },
         );
+
+        for (const message of unreadMessages) {
+            await messageRepo.update(message._id.toString(), {
+                $push: { readBy: userId },
+            });
+        }
+
+        await conversationRepo.update(conversationId, {
+            lastReadBy: userId,
+            lastReadAt: new Date(),
+        });
 
         return true;
     }

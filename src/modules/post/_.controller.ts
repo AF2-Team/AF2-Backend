@@ -2,7 +2,6 @@ import { ControllerBase } from '@bases/controller.base.js';
 import PostService from './_.service.js';
 
 class PostController extends ControllerBase {
-    
     // 1. Crear Post
     create = async () => {
         const body = this.getBody();
@@ -15,9 +14,9 @@ class PostController extends ControllerBase {
         // Llamamos a 'createPost' del servicio pasando los archivos
         const result = await PostService.createPost(
             { ...body, user: String(userId) },
-            req.files as any[] // Multer files
+            req.files as any[], // Multer files
         );
-        
+
         this.created(result, 'Post created');
     };
 

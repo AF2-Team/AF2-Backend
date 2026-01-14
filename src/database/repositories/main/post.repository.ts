@@ -184,9 +184,6 @@ async getByIdPopulated(id: string) {
             id: post._id       // Opcional: facilitamos el id si hiciera falta
         }));
     }
-    async updateLikesCount(postId: string, amount: number) {
-    return this.model.updateOne({ _id: postId }, { $inc: { likesCount: amount } });
-}
 }
 
 export default new PostRepository();

@@ -50,7 +50,5 @@ router.get('/:id/interactions', PostController.interactions);
 router.get('/:id', PostController.getById); // Llama a getById
 router.patch('/:id', AuthMiddleware.authenticate, PostController.update); // Llama a update
 router.delete('/:id', AuthMiddleware.authenticate, PostController.delete); // Llama a delete
-//Dar o quitar like
-router.post('/:id/like',AuthMiddleware.authenticate, PostController.toggleLike);
 
 export default router;

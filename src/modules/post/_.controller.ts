@@ -76,14 +76,6 @@ class PostController extends ControllerBase {
         this.success(result);
     }
 
-    async getPostLikes() {
-        const postId = this.requireParam('id');
-        const options = this.getQueryFilters();
-
-        const result = await PostService.getLikes(postId, options);
-        this.success(result);
-    }
-
     async getPostInteractions() {
         const postId = this.requireParam('id');
 

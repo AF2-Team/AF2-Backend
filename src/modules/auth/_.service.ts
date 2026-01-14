@@ -52,14 +52,10 @@ class AuthService extends BaseService {
         this.validateRequired(data, ['email', 'password']);
 
         const user = await UserRepository.findByEmail(email);
-        if (!user) {
-            throw new ValidationError('Invalid credentials');
-        }
+        if (!user) throw new ValidationError('Invalid credentials');
 
         const isValid = await BcryptUtil.compare(password, user.password);
-        if (!isValid) {
-            throw new ValidationError('Invalid credentials');
-        }
+        if (!isValid) throw new ValidationError('Invalid credentials');
 
         const token = JWTUtil.generateToken({
             userId: user._id.toString(),
@@ -133,7 +129,7 @@ class AuthService extends BaseService {
 
         // Buscamos el usuario y pedimos explícitamente el password (select +password)
         const user = await UserRepository.findAnything(userId);
-        
+
         if (!user) throw new ValidationError('User not found');
 
         const isMatch = await BcryptUtil.compare(currentPassword, user.password);

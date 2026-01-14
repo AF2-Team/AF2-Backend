@@ -23,8 +23,7 @@ router.post(
 router.post('/:id/repost', AuthMiddleware.authenticate, PostController.createRepost);
 router.get('/:id/reposts', PostController.getPostReposts);
 
-// Interacciones
-router.get('/:id/likes', PostController.getPostLikes);
+// Interacciones (solo contadores)
 router.get('/:id/interactions', PostController.getPostInteractions);
 
 // Filtros

@@ -12,6 +12,10 @@ class InteractionService extends BaseService {
         return Database.repository('main', 'post');
     }
 
+    private getUserRepo() {
+        return Database.repository('main', 'user');
+    }
+
     async likePost(userId: string, postId: string) {
         this.validateRequired({ userId, postId }, ['userId', 'postId']);
 
@@ -89,11 +93,21 @@ class InteractionService extends BaseService {
     async createComment(userId: string, postId: string, text: string) {
         this.validateRequired({ userId, postId, text }, ['userId', 'postId', 'text']);
 
-        if (text.trim().length === 0) {
+        if (text === undefined || text === null) {
+            throw new ValidationError('Text field is required');
+        }
+
+        if (typeof text !== 'string') {
+            throw new ValidationError('Comment text must be a string');
+        }
+
+        const trimmedText = text.trim();
+
+        if (trimmedText.length === 0) {
             throw new ValidationError('Comment text cannot be empty');
         }
 
-        if (text.length > 500) {
+        if (trimmedText.length > 500) {
             throw new ValidationError('Comment cannot exceed 500 characters');
         }
 
@@ -109,7 +123,7 @@ class InteractionService extends BaseService {
             user: userId,
             post: postId,
             type: 'comment',
-            text: text.trim(),
+            text: trimmedText,
             status: 1,
         });
 
@@ -147,6 +161,52 @@ class InteractionService extends BaseService {
         });
 
         return result;
+    }
+
+    async getPostLikes(postId: string, options: any) {
+        this.validateRequired({ postId }, ['postId']);
+
+        const interactionRepo = this.getInteractionRepo();
+        const userRepo = this.getUserRepo();
+        const postRepo = this.getPostRepo();
+
+        const post = await postRepo.getById(postId);
+        if (!post) {
+            throw new NotFoundError('Post', postId);
+        }
+
+        const likes = await interactionRepo.getAllActive(options, {
+            post: postId,
+            type: 'like',
+            status: 1,
+        });
+
+        const userIds = likes.map((like: any) => like.user).filter(Boolean);
+
+        if (userIds.length === 0) {
+            return [];
+        }
+
+        const users = await userRepo.getAllActive(
+            {
+                pagination: { limit: options.pagination?.limit || 20 },
+            },
+            {
+                _id: { $in: userIds },
+                status: 1,
+            },
+        );
+
+        const userMap = new Map();
+        likes.forEach((like: any) => {
+            userMap.set(like.user.toString(), like.createdAt);
+        });
+
+        return users.sort((a: any, b: any) => {
+            const dateA = userMap.get(a._id.toString()) || new Date(0);
+            const dateB = userMap.get(b._id.toString()) || new Date(0);
+            return dateB.getTime() - dateA.getTime();
+        });
     }
 }
 

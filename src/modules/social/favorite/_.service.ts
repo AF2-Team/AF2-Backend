@@ -1,6 +1,6 @@
 import { BaseService } from '@bases/service.base.js';
 import { Database } from '@database/index.js';
-import { NotFoundError } from '@errors';
+import { ValidationError, NotFoundError } from '@errors';
 import NotificationService from '@modules/social/notification/_.service.js';
 
 class FavoriteService extends BaseService {
@@ -12,7 +12,7 @@ class FavoriteService extends BaseService {
         return Database.repository('main', 'post');
     }
 
-    async addFavorite(userId: string, postId: string) {
+    async addFavorite(userId: string | undefined, postId: string) {
         this.validateRequired({ userId, postId }, ['userId', 'postId']);
 
         const favoriteRepo = this.getFavoriteRepo();
@@ -43,7 +43,7 @@ class FavoriteService extends BaseService {
             favoritesCount: (post.favoritesCount || 0) + 1,
         });
 
-        if (post.user.toString() !== userId) {
+        if (userId && post.user.toString() !== userId) {
             await NotificationService.notify({
                 user: post.user.toString(),
                 actor: userId,
@@ -55,7 +55,7 @@ class FavoriteService extends BaseService {
         return { favorited: true };
     }
 
-    async removeFavorite(userId: string, postId: string) {
+    async removeFavorite(userId: string | undefined, postId: string) {
         this.validateRequired({ userId, postId }, ['userId', 'postId']);
 
         const favoriteRepo = this.getFavoriteRepo();
@@ -83,7 +83,7 @@ class FavoriteService extends BaseService {
         return { unfavorited: true };
     }
 
-    async getMyFavorites(userId: string, options: any) {
+    async getMyFavorites(userId: string | undefined, options: any) {
         this.validateRequired({ userId }, ['userId']);
 
         const favoriteRepo = this.getFavoriteRepo();

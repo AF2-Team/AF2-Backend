@@ -5,11 +5,9 @@ import { AuthError, NotFoundError } from '@errors';
 class ConversationController extends ControllerBase {
     async getMyConversations() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) throw new AuthError('Unauthorized');
-
         const options = this.getQueryFilters();
-        const result = await ConversationService.getUserConversations(user._id, options);
 
+        const result = await ConversationService.getUserConversations(user!._id, options);
         this.success(result);
     }
 
@@ -23,21 +21,17 @@ class ConversationController extends ControllerBase {
 
     async markConversationAsRead() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) throw new AuthError('Unauthorized');
-
         const { conversationId } = this.getParams();
-        const result = await ConversationService.markAsRead(conversationId, user._id);
 
+        const result = await ConversationService.markAsRead(conversationId, user!._id);
         this.success(result);
     }
 
     async createConversation() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) throw new AuthError('Unauthorized');
-
         const participantId = this.requireBodyField('participantId');
-        const result = await ConversationService.createConversation(user._id, participantId);
 
+        const result = await ConversationService.createConversation(user!._id, participantId);
         this.created(result, 'Conversation created');
     }
 }

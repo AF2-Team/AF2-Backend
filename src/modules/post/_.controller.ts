@@ -1,11 +1,9 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import PostService from './_.service.js';
-import { AuthError, NotFoundError } from '@errors';
 
 class PostController extends ControllerBase {
     async createPost() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) throw new AuthError('Unauthorized');
 
         const body = this.getBody();
         const req = this.getRequest();
@@ -14,7 +12,7 @@ class PostController extends ControllerBase {
         const result = await PostService.createPost(
             {
                 ...body,
-                user: user._id,
+                user: user!._id,
             },
             files,
         );
@@ -26,34 +24,30 @@ class PostController extends ControllerBase {
         const postId = this.requireParam('id');
         const result = await PostService.getPostById(postId);
 
-        if (!result) throw new NotFoundError('Post', postId);
         this.success(result);
     }
 
     async updatePost() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) throw new AuthError('Unauthorized');
 
         const postId = this.requireParam('id');
         const body = this.getBody();
 
-        const result = await PostService.updatePost(postId, user._id, body);
+        const result = await PostService.updatePost(postId, user!._id, body);
         this.success(result, 'Post updated');
     }
 
     async deletePost() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) throw new AuthError('Unauthorized');
 
         const postId = this.requireParam('id');
-        await PostService.deletePost(postId, user._id);
+        await PostService.deletePost(postId, user!._id);
 
         this.success({ id: postId }, 'Post deleted');
     }
 
     async uploadPostMedia() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) throw new AuthError('Unauthorized');
 
         const postId = this.requireParam('id');
         const req = this.getRequest();
@@ -61,16 +55,15 @@ class PostController extends ControllerBase {
 
         if (!file) throw new Error('Media file required');
 
-        const result = await PostService.addMedia(postId, user._id, file);
+        const result = await PostService.addMedia(postId, user!._id, file);
         this.success(result, 'Media uploaded');
     }
 
     async createRepost() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) throw new AuthError('Unauthorized');
 
         const postId = this.requireParam('id');
-        const result = await PostService.createRepost(user._id, postId);
+        const result = await PostService.createRepost(user!._id, postId);
 
         this.created(result, 'Repost created');
     }
@@ -80,14 +73,6 @@ class PostController extends ControllerBase {
         const options = this.getQueryFilters();
 
         const result = await PostService.getReposts(postId, options);
-        this.success(result);
-    }
-
-    async getPostLikes() {
-        const postId = this.requireParam('id');
-        const options = this.getQueryFilters();
-
-        const result = await PostService.getLikes(postId, options);
         this.success(result);
     }
 
@@ -118,7 +103,6 @@ class PostController extends ControllerBase {
         const name = this.requireParam('name');
         const result = await PostService.getTagInfo(name);
 
-        if (!result) throw new NotFoundError('Tag', name);
         this.success(result);
     }
 

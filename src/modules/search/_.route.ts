@@ -5,11 +5,12 @@ import { AuthMiddleware } from '@middlewares/auth.middleware.js';
 const router = Router();
 
 // Búsqueda general
-router.get('/', SearchController.search);
+router.get('/',  AuthMiddleware.authenticate,  SearchController.search);
 
 // Búsquedas específicas
 router.get(
     '/users',
+     AuthMiddleware.authenticate,
     (req: Request, res: Response, next: NextFunction) => {
         req.query.type = 'user';
         next();
@@ -19,6 +20,7 @@ router.get(
 
 router.get(
     '/posts',
+    AuthMiddleware.authenticate,
     (req: Request, res: Response, next: NextFunction) => {
         req.query.type = 'post';
         next();
@@ -28,6 +30,7 @@ router.get(
 
 router.get(
     '/tags',
+    AuthMiddleware.authenticate,
     (req: Request, res: Response, next: NextFunction) => {
         req.query.type = 'tag';
         next();

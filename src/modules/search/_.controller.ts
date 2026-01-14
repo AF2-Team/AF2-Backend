@@ -17,17 +17,13 @@ class SearchController extends ControllerBase {
 
     async getSearchHistory() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) throw new AuthError('Unauthorized');
-
-        const result = await SearchService.getSearchHistory(user._id);
+        const result = await SearchService.getSearchHistory(user!._id);
         this.success(result);
     }
 
     async clearSearchHistory() {
         const user = this.getUser<{ _id: string }>();
-        if (!user) throw new AuthError('Unauthorized');
-
-        await SearchService.clearSearchHistory(user._id);
+        await SearchService.clearSearchHistory(user!._id);
         this.success({ cleared: true });
     }
 }

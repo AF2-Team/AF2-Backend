@@ -106,8 +106,7 @@ class FeedService extends BaseService {
             const tagRepo = Database.repository('main', 'tag');
 
             let tags: string[] = [];
-
-            // Extraer tags de los filtros
+            
             const rawTags = options.raw?.tags;
             if (rawTags && typeof rawTags === 'string') {
                 tags = rawTags
@@ -116,7 +115,6 @@ class FeedService extends BaseService {
                     .filter(Boolean);
             }
 
-            // Si no hay tags explícitos y hay usuario, obtener tags seguidos
             if (!tags.length && userId) {
                 const follows = await followRepo.getAllActive(
                     {},

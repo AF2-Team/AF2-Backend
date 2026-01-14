@@ -1,6 +1,6 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import PostService from './_.service.js';
-
+import InteractionService from '@modules/social/interaction/_.service.js';
 class PostController extends ControllerBase {
     // 1. Crear Post
     create = async () => {
@@ -116,6 +116,16 @@ class PostController extends ControllerBase {
     trendingTags = async () => {
         const options = this.getQueryFilters();
         this.success(await PostService.getTrendingTags(options));
+    };
+    
+    toggleLike = async () => {
+        const user = this.getUser<{ _id: string }>();
+        const postId = this.requireParam('id');
+
+        // Delegamos la lógica al módulo de interacción
+        const result = await InteractionService.toggleLike(user._id, postId);
+        
+        this.success(result);
     };
 }
 

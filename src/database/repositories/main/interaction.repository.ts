@@ -30,6 +30,7 @@ class InteractionRepository extends MongooseRepositoryBase<Interaction> {
             user,
             post,
             type: 'like',
+            status: 1,
         });
     }
 
@@ -38,19 +39,6 @@ class InteractionRepository extends MongooseRepositoryBase<Interaction> {
             user,
             post,
             type: 'like',
-        });
-    }
-
-    async createComment(user: string, post: string, text: string) {
-        if (!text || !text.trim()) {
-            throw new Error('Comment text is required');
-        }
-
-        return this.create({
-            user,
-            post,
-            type: 'comment',
-            text: text.trim(),
         });
     }
 }

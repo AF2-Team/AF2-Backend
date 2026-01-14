@@ -10,13 +10,12 @@ class PostRepository extends MongooseRepositoryBase<typeof PostModel> {
 async getByIdPopulated(id: string) {
         const post = await this.model
             .findOne({ _id: id, status: 1 })
-            .populate('user', 'username name avatar') // Trae los datos del usuario
+            .populate('user', 'username avatar')
             .lean()
             .exec() as any; 
 
         if (!post) return null;
 
-        // Mapeo crucial para tu frontend
         return {
             ...post,
             author: post.user, 
@@ -156,33 +155,28 @@ async getByIdPopulated(id: string) {
         });
     }
     async getAllActive(options: any = {}, filter: any = {}) {
-        // 1. Extraer paginación (con valores por defecto)
         const page = Number(options.page) || 1;
         const limit = Number(options.limit) || 10;
         const skip = (page - 1) * limit;
-
-        // 2. Construir la Query
-        // Combinamos "isActive: true" (o tu lógica de borrado) con el filtro que envía el servicio
+        
         const query = {
-            status: 1, // Asegura que no estén borrados
-            ...filter       // Agrega { publishStatus: 'published' }
+            status: 1,
+            ...filter
         };
 
-        // 3. Ejecutar consulta en Mongoose
         const posts = await this.model
             .find(query)
-            .sort({ createdAt: -1 }) // Ordenar: Más nuevos primero
+            .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
-            .populate('user', 'username name avatar') // <--- IMPORTANTE: Traer datos del usuario para la App
-            .lean() // Convierte a JSON simple (más rápido)
+            .populate('user', 'username avatar')
+            .lean()
             .exec();
 
         return posts.map((post: any) => ({
             ...post,
-            author: post.user, // Duplicamos user dentro de author
-            id: post._id       // Opcional: facilitamos el id si hiciera falta
-        }));
+            author: post.user,
+            id: post._id 
     }
 }
 

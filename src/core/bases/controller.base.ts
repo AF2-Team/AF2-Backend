@@ -252,9 +252,9 @@ export abstract class ControllerBase {
     }
 
     protected getUser<T = any>(): T {
-        const session = this.getUser<T>();
+        const session = this.getRequest();
 
-        if (!session) throw new AuthError('User authentication required');
+        if (!session?.user) throw new AuthError('User authentication required');
 
         return (session as any).user;
     }
@@ -293,7 +293,7 @@ export abstract class ControllerBase {
         throw new ValidationError(message, details);
     }
 
-     protected throwNotFoundError(message: string, details?: any): never {
+    protected throwNotFoundError(message: string, details?: any): never {
         throw new NotFoundError(message, details);
     }
 }

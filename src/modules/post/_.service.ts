@@ -26,7 +26,7 @@ class PostService extends BaseService {
 
         // 1. Obtenemos datos del autor aparte para evitar usar .populate() recursivo
         let authorData = postDoc.user;
-        
+
         // Si 'user' es solo un ID (string u ObjectId), buscamos el usuario
         if (authorData && (typeof authorData === 'string' || authorData.constructor.name === 'ObjectId')) {
             const userRepo = Database.repository('main', 'user');
@@ -37,7 +37,7 @@ class PostService extends BaseService {
                     _id: user._id,
                     name: user.name,
                     username: user.username,
-                    avatarUrl: user.avatarUrl
+                    avatarUrl: user.avatarUrl,
                 };
             }
         } else if (authorData && authorData._id) {
@@ -46,7 +46,7 @@ class PostService extends BaseService {
                 _id: authorData._id,
                 name: authorData.name,
                 username: authorData.username,
-                avatarUrl: authorData.avatarUrl
+                avatarUrl: authorData.avatarUrl,
             };
         }
 
@@ -57,7 +57,7 @@ class PostService extends BaseService {
             url: postDoc.url,
             media: postDoc.media ? postDoc.media : [], // Aseguramos array
             mediaUrl: postDoc.mediaUrl, // Legacy
-            mediaId: postDoc.mediaId,   // Legacy
+            mediaId: postDoc.mediaId, // Legacy
             tags: postDoc.tags,
             type: postDoc.type,
             status: postDoc.status,
@@ -66,11 +66,11 @@ class PostService extends BaseService {
             createdAt: postDoc.createdAt,
             updatedAt: postDoc.updatedAt,
             user: authorData, // Aquí va el usuario limpio
-            
+
             // Campos calculados por si acaso (inicializados en 0)
             likesCount: postDoc.likesCount || 0,
             commentsCount: postDoc.commentsCount || 0,
-            repostsCount: postDoc.repostsCount || 0
+            repostsCount: postDoc.repostsCount || 0,
         };
     }
 
@@ -152,7 +152,7 @@ class PostService extends BaseService {
         this.validateRequired({ postId }, ['postId']);
         const postRepo = this.getPostRepo();
         const post = await postRepo.getById(postId);
-        
+
         if (!post) throw new NotFoundError('Post', postId);
 
         // Usamos el builder también aquí para consistencia
@@ -197,7 +197,7 @@ class PostService extends BaseService {
                     type: 'repost',
                     entityId: originalPostId,
                 });
-            } catch { }
+            } catch {}
         }
 
         // RETORNO MANUAL SEGURO
@@ -205,9 +205,9 @@ class PostService extends BaseService {
     }
 
     // --- Getters que retornan Listas ---
-    // Los repositorios suelen manejar bien las listas con .lean() interno, 
+    // Los repositorios suelen manejar bien las listas con .lean() interno,
     // pero si fallan, se les puede aplicar un map(p => buildSafeResponse(p))
-    
+
     async getReposts(postId: string, options: any) {
         this.validateRequired({ postId }, ['postId']);
         const postRepo = this.getPostRepo();
@@ -251,7 +251,7 @@ class PostService extends BaseService {
         if (payload.text !== undefined) {
             const newText = String(payload.text).trim();
             if (newText.length > 4000) throw new ValidationError('Text too long');
-            
+
             if (!newText && !post.url && (!post.media || post.media.length === 0))
                 throw new ValidationError('Post cannot be empty');
 
@@ -269,9 +269,9 @@ class PostService extends BaseService {
         const post = await postRepo.getById(postId);
         if (!post) throw new NotFoundError('Post', postId);
         if (post.user.toString() !== userId) throw new ValidationError('Unauthorized');
-        
+
         await postRepo.update(postId, { status: 0 });
-        
+
         if (post.tags?.length) {
             const tagRepo = this.getTagRepo();
             for (const tagName of post.tags) {
@@ -298,11 +298,20 @@ class PostService extends BaseService {
     }
 
     async getPostsByUser(userId: string, options: any) {
-        return this.getPostRepo().getAllActive(options, { user: userId, type: 'post', publishStatus: 'published', status: 1 });
+        return this.getPostRepo().getAllActive(options, {
+            user: userId,
+            type: 'post',
+            publishStatus: 'published',
+            status: 1,
+        });
     }
 
     async getPostsByTag(tagName: string, options: any) {
-        return this.getPostRepo().getAllActive(options, { tags: normalizeHashtag(tagName), publishStatus: 'published', status: 1 });
+        return this.getPostRepo().getAllActive(options, {
+            tags: normalizeHashtag(tagName),
+            publishStatus: 'published',
+            status: 1,
+        });
     }
 
     async getTagInfo(name: string) {
@@ -310,13 +319,16 @@ class PostService extends BaseService {
     }
 
     async getTrendingTags(options: any) {
-        return this.getTagRepo().getAllActive({ ...options, order: [['postsCount', 'desc']] }, { status: 1, postsCount: { $gt: 0 } });
+        return this.getTagRepo().getAllActive(
+            { ...options, order: [['postsCount', 'desc']] },
+            { status: 1, postsCount: { $gt: 0 } },
+        );
     }
-    
+
     async getFeed(userId: string, page: number = 1) {
         return this.getPostRepo().getAllActive({ page, limit: 20 }, { publishStatus: 'published' });
     }
-    
+
     async getCombinedFeed(userId: string, options: any) {
         return this.getPostRepo().getAllActive(options, { publishStatus: 'published' });
     }

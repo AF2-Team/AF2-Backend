@@ -1,6 +1,7 @@
 import { BaseService } from '@bases/service.base.js';
 import { Database } from '@database/index.js';
 import { ProcessedQueryFilters } from '@rules/api-query.type.js';
+import SearchHistoryRepository from '@database/repositories/main/searchHistory.repository.js';
 
 interface SearchResult {
     users: any[];
@@ -33,15 +34,10 @@ class SearchService extends BaseService {
     }
 
     private getSearchHistoryRepo() {
-        return Database.repository('main', 'searchHistory');
+        return SearchHistoryRepository;
     }
 
-    async search(
-        query: string,
-        type: string,
-        userId: string | undefined,
-        options: ProcessedQueryFilters,
-    ): Promise<SearchResult> {
+    async search(query: string, type: string, userId: string | undefined, options: ProcessedQueryFilters) {
         const q = query ? String(query).trim() : '';
 
         if (!q || q.length < 2) {
@@ -408,44 +404,20 @@ class SearchService extends BaseService {
         try {
             const historyRepo = this.getSearchHistoryRepo();
 
-            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+            const hasRecent = await historyRepo.hasRecentSearch(userId, query, type, 5);
 
-            const existing = await historyRepo.getOne({
-                user: userId,
-                query,
-                type,
-                createdAt: { $gt: fiveMinutesAgo },
-                status: 1,
-            });
-
-            if (!existing) {
+            if (!hasRecent) {
                 await historyRepo.create({
                     user: userId,
                     query,
                     type,
                     createdAt: new Date(),
                     status: 1,
-                });
+                } as any);
             }
         } catch (error) {
-            // Silenciar errores de historial
+            // Silenciar errores
         }
-    }
-
-    async getSearchHistory(userId: string): Promise<any[]> {
-        this.validateRequired({ userId }, ['userId']);
-
-        const historyRepo = this.getSearchHistoryRepo();
-        return historyRepo.getAllActive(
-            {
-                order: [['createdAt', 'desc']],
-                pagination: { limit: 20 },
-            },
-            {
-                user: userId,
-                status: 1,
-            },
-        );
     }
 
     async clearSearchHistory(userId: string): Promise<boolean> {
@@ -453,19 +425,18 @@ class SearchService extends BaseService {
 
         const historyRepo = this.getSearchHistoryRepo();
 
-        const historyItems = await historyRepo.getAllActive(
-            {},
-            {
-                user: userId,
-                status: 1,
-            },
-        );
+        return await historyRepo.clearUserHistory(userId);
+    }
 
-        for (const item of historyItems) {
-            await historyRepo.update(item._id.toString(), { status: 0 });
-        }
+    async getSearchHistory(userId: string): Promise<any[]> {
+        this.validateRequired({ userId }, ['userId']);
 
-        return true;
+        const historyRepo = this.getSearchHistoryRepo();
+
+        return await historyRepo.getByUser(userId, {
+            order: [['createdAt', 'desc']],
+            pagination: { limit: 20 },
+        });
     }
 }
 

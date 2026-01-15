@@ -99,19 +99,23 @@ class PostService extends BaseService {
         }
 
         const newPost = await postRepo.create(postData);
+
+        // [FIX] 1. OBLIGAR A POBLAR EL USUARIO
+        // Esto busca el nombre y foto en la colección de usuarios
         if (newPost.populate) {
             await newPost.populate('user', 'name username avatarUrl');
         }
-        try {
-            const repo = postRepo as any;
-            if (repo.getByIdPopulated) {
-                return (await repo.getByIdPopulated(newPost._id.toString())) || newPost;
-            }
-        } catch {
-            // Continuar sin población
+
+        // [FIX] 2. RETORNO SEGURO
+        // Convertimos a objeto JS simple para poder modificarlo si hace falta
+        const responseObj = newPost.toObject ? newPost.toObject() : newPost;
+        
+        // Parche de seguridad: Si no tiene name, usamos el username
+        if (responseObj.user && !responseObj.user.name) {
+            responseObj.user.name = responseObj.user.username || 'Usuario';
         }
 
-        return newPost;
+        return responseObj;
     }
 
     async getPostById(postId: string) {

@@ -1,9 +1,9 @@
-import SearchHistoryModel from '@database/models/main/searchHistory.model.js';
+import HistoryModel from '@database/models/main/history.model.js';
 import { MongooseRepositoryBase } from '@database/repositories/bases/mongoose.repository.js';
 
-class SearchHistoryRepository extends MongooseRepositoryBase<typeof SearchHistoryModel> {
+class HistoryRepository extends MongooseRepositoryBase<typeof HistoryModel> {
     constructor() {
-        super(SearchHistoryModel);
+        super(HistoryModel);
     }
 
     async getAllActive(options: any = {}, filter: any = {}) {
@@ -67,4 +67,4 @@ class SearchHistoryRepository extends MongooseRepositoryBase<typeof SearchHistor
     }
 }
 
-export default new SearchHistoryRepository();
+export default new HistoryRepository();

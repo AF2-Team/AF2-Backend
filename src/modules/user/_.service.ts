@@ -119,7 +119,7 @@ class UserService extends BaseService {
         const currentUser = await userRepo.getById(userId);
 
         if (currentUser?.avatarFileId) {
-            await ImageKitService.delete(currentUser.avatarFileId);
+            await ImageKitService.delete(currentUser.avatarFileId).catch(() => null);
         }
 
         const res = (await ImageKitService.upload(file, 'avatars')) as any;
@@ -142,20 +142,38 @@ class UserService extends BaseService {
         if (!userId) throw new ValidationError('User id is required');
         if (!file) throw new ValidationError('Cover file is required');
 
-        const userRepo = Database.repository('main', 'user');
-        const currentUser = await userRepo.getById(userId);
+        const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!allowedMimeTypes.includes(file.mimetype)) {
+            throw new ValidationError('Invalid file type. Only JPEG, PNG and WebP are allowed');
+        }
 
-        if (currentUser?.coverFileId) {
-            await ImageKitService.delete(currentUser.coverFileId);
+        const maxSize = 20 * 1024 * 1024;
+        if (file.size > maxSize) {
+            throw new ValidationError('File size exceeds 5MB limit');
+        }
+        const userRepo = Database.repository('main', 'user');
+
+        const currentUser = await userRepo.getById(userId);
+        if (!currentUser) throw new NotFoundError('User', userId);
+
+        if (currentUser.coverFileId) {
+            await ImageKitService.delete(currentUser.coverFileId).catch(() => null);
         }
 
         const res = (await ImageKitService.upload(file, 'covers')) as any;
-        if (!res?.url || !res?.fileId) throw new ValidationError('Failed to upload cover');
+        if (!res?.url || !res?.fileId) {
+            throw new ValidationError('Failed to upload cover');
+        }
 
-        return userRepo.update(userId, {
+        const updated = await userRepo.update(userId, {
             coverUrl: res.url,
             coverFileId: res.fileId,
         });
+
+        return {
+            coverUrl: updated.coverUrl,
+            updatedAt: updated.updatedAt,
+        };
     }
 
     async getUserPosts(userId: string, options: ProcessedQueryFilters) {

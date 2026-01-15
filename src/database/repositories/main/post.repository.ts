@@ -7,6 +7,8 @@ class PostRepository extends MongooseRepositoryBase<typeof PostModel> {
         super(PostModel);
     }
 
+
+    
 async getByIdPopulated(id: string) {
         const post = await this.model
             .findOne({ _id: id, status: 1 })
@@ -179,6 +181,13 @@ async getByIdPopulated(id: string) {
             id: post._id 
         }));
     }
+    async populateAuthors(posts: any[]) {
+        return this.model.populate(posts, { 
+            path: 'user', 
+            select: 'name username avatarUrl' 
+        });
+    }
+
 }
 
 export default new PostRepository();

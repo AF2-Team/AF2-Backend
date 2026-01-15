@@ -294,7 +294,7 @@ export abstract class ControllerBase {
         throw new ValidationError(message, details);
     }
 
-     protected throwNotFoundError(message: string, details?: any): never {
+    protected throwNotFoundError(message: string, details?: any): never {
         throw new NotFoundError(message, details);
     }
 }

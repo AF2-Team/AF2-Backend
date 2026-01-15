@@ -31,7 +31,7 @@ router.get('/:id/reposts', UserController.reposts);
 router.get('/:id/favorites', UserController.favorites);
 
 // Social
-router.get('/:userId/following', UserController.following);
-router.get('/:userId/followers', UserController.followers);
+router.get('/me/following', AuthMiddleware.authenticate, UserController.following);
+router.get('/me/followers', AuthMiddleware.authenticate, UserController.followers);
 
 export default router;

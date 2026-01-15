@@ -2,6 +2,15 @@ import { ControllerBase } from '@bases/controller.base.js';
 import InteractionService from './_.service.js';
 
 class InteractionController extends ControllerBase {
+
+    async toggleLike() {
+        const user = this.getUser<{ _id: string }>();
+        const postId = this.requireParam('postId');
+        const result = await InteractionService.toggleLike(user!._id, postId);
+        this.success(result);
+    }
+
+
     async likePost() {
         const user = this.getUser<{ _id: string }>();
         const postId = this.requireParam('postId');

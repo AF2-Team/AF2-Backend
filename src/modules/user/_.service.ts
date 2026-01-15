@@ -100,11 +100,7 @@ class UserService extends BaseService {
 
         const followRepo = Database.repository('main', 'follow');
 
-        return followRepo.getAllActive(options, {
-            follower: userId,
-            targetType: 'user',
-            status: 1,
-        });
+        return (followRepo as any).getFollowingUsers(userId, options);
     }
 
     async getFollowers(userId: string, options: ProcessedQueryFilters) {
@@ -112,11 +108,7 @@ class UserService extends BaseService {
 
         const followRepo = Database.repository('main', 'follow');
 
-        return followRepo.getAllActive(options, {
-            target: userId,
-            targetType: 'user',
-            status: 1,
-        });
+        return (followRepo as any).getFollowersUsers(userId, options);
     }
 
     async updateAvatar(userId: string, file: any) {

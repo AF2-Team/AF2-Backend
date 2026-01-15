@@ -1,5 +1,4 @@
 import { ControllerBase } from '@bases/controller.base.js';
-import { Request, Response } from 'express';
 import FeedService from './_.service.js';
 
 class FeedController extends ControllerBase {
@@ -7,14 +6,16 @@ class FeedController extends ControllerBase {
         const user = this.getUser<{ _id: string }>();
         const options = this.getQueryFilters();
 
-        return this.success(await FeedService.getFeed(user?._id, options));
+        const result = await FeedService.getFeed(user?._id, options);
+        this.success(result);
     }
 
     async tags() {
         const user = this.getUser<{ _id: string }>();
         const options = this.getQueryFilters();
 
-        return this.success(await FeedService.getTagFeed(user?._id, options));
+        const result = await FeedService.getTagFeed(user?._id, options);
+        this.success(result);
     }
 }
 

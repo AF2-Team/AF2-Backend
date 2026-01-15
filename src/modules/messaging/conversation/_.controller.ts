@@ -1,36 +1,35 @@
 import { ControllerBase } from '@bases/controller.base.js';
-import { Request, Response } from 'express';
 import ConversationService from './_.service.js';
 
 class ConversationController extends ControllerBase {
-    async list(req: Request, res: Response) {
-        const user = this.getUser<{ userId: string }>();
+    async getMyConversations() {
+        const user = this.getUser<{ _id: string }>();
         const options = this.getQueryFilters();
-        const result = await ConversationService.getUserConversations(user?.userId as string, options);
 
+        const result = await ConversationService.getUserConversations(user!._id, options);
         this.success(result);
     }
 
-    async get(req: Request, res: Response) {
+    async getConversation() {
         const { conversationId } = this.getParams();
         const result = await ConversationService.getConversation(conversationId);
 
         this.success(result);
     }
 
-    async markRead(req: Request, res: Response) {
+    async markConversationAsRead() {
+        const user = this.getUser<{ _id: string }>();
         const { conversationId } = this.getParams();
-        const user = this.getUser<{ userId: string }>();
-        const result = await ConversationService.markAsRead(conversationId, user?.userId as string);
 
+        const result = await ConversationService.markAsRead(conversationId, user!._id);
         this.success(result);
     }
 
-    async create(req: Request, res: Response) {
-        const user = this.getUser<{ userId: string }>();
+    async createConversation() {
+        const user = this.getUser<{ _id: string }>();
         const participantId = this.requireBodyField('participantId');
-        const result = await ConversationService.createConversation(user.userId, participantId);
 
+        const result = await ConversationService.createConversation(user!._id, participantId);
         this.created(result, 'Conversation created');
     }
 }

@@ -252,11 +252,12 @@ export abstract class ControllerBase {
     }
 
     protected getUser<T = any>(): T {
-        const session = this.getRequest();
+        const req = this.getRequest() as any;
+        const user = req.user;
 
-        if (!session?.user) throw new AuthError('User authentication required');
+        if (!user) throw new AuthError('User authentication required');
 
-        return (session as any).user;
+        return user as T;
     }
 
     /**

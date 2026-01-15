@@ -2,121 +2,115 @@ import { ControllerBase } from '@bases/controller.base.js';
 import PostService from './_.service.js';
 
 class PostController extends ControllerBase {
-    // 1. Crear Post
-    create = async () => {
+    async createPost() {
+        const user = this.getUser<{ _id: string }>();
+
         const body = this.getBody();
-        const user = this.getUser<any>();
         const req = this.getRequest();
+        const files = (req as any).files || [];
 
-        if (!user) this.throwValidationError('User session not found');
-        const userId = user._id || user.id;
-
-        // Llamamos a 'createPost' del servicio pasando los archivos
         const result = await PostService.createPost(
-            { ...body, user: String(userId) },
-            req.files as any[], // Multer files
+            {
+                ...body,
+                user: user!._id,
+            },
+            files,
         );
 
         this.created(result, 'Post created');
-    };
+    }
 
-    // 2. Obtener Post por ID
-    getById = async () => {
+    async getPost() {
         const postId = this.requireParam('id');
-        const result = await PostService.getPostById(postId); // Llama a getPostById
-        if (!result) this.throwValidationError('Post not found');
-        this.success(result);
-    };
+        const result = await PostService.getPostById(postId);
 
-    // 3. Actualizar
-    update = async () => {
+        this.success(result);
+    }
+
+    async updatePost() {
+        const user = this.getUser<{ _id: string }>();
+
         const postId = this.requireParam('id');
         const body = this.getBody();
-        const user = this.getUser<{ _id: string }>();
-        const result = await PostService.updatePost(postId, user._id, body);
+
+        const result = await PostService.updatePost(postId, user!._id, body);
         this.success(result, 'Post updated');
-    };
+    }
 
-    // 4. Eliminar
-    delete = async () => {
-        const postId = this.requireParam('id');
+    async deletePost() {
         const user = this.getUser<{ _id: string }>();
-        await PostService.deletePost(postId, user._id);
+
+        const postId = this.requireParam('id');
+        await PostService.deletePost(postId, user!._id);
+
         this.success({ id: postId }, 'Post deleted');
-    };
+    }
 
-    // 5. Subir Media Extra
-    uploadMedia = async () => {
-        const postId = this.requireParam('id');
+    async uploadPostMedia() {
         const user = this.getUser<{ _id: string }>();
+
+        const postId = this.requireParam('id');
         const req = this.getRequest();
-        if (!req.file) this.throwValidationError('Media file required');
-        const result = await PostService.addMedia(postId, user._id, req.file);
+        const file = (req as any).file;
+
+        if (!file) throw new Error('Media file required');
+
+        const result = await PostService.addMedia(postId, user!._id, file);
         this.success(result, 'Media uploaded');
-    };
+    }
 
-    // 6. Repostear
-    repost = async () => {
+    async createRepost() {
         const user = this.getUser<{ _id: string }>();
-        const postId = this.requireParam('id');
-        const result = await PostService.createRepost(user._id, postId);
-        this.created(result, 'Repost created');
-    };
 
-    // 7. Getters varios
-    reposts = async () => {
+        const postId = this.requireParam('id');
+        const result = await PostService.createRepost(user!._id, postId);
+
+        this.created(result, 'Repost created');
+    }
+
+    async getPostReposts() {
         const postId = this.requireParam('id');
         const options = this.getQueryFilters();
+
         const result = await PostService.getReposts(postId, options);
         this.success(result);
-    };
+    }
 
-    likes = async () => {
+    async getPostInteractions() {
         const postId = this.requireParam('id');
-        this.success(await PostService.getLikes(postId, {}));
-    };
 
-    interactions = async () => {
-        const postId = this.requireParam('id');
-        this.success(await PostService.getInteractions(postId));
-    };
+        const result = await PostService.getInteractions(postId);
+        this.success(result);
+    }
 
-    feed = async () => {
-        const filters = this.getQueryFilters();
-        const page = Number(filters.raw.page) || 1;
-        const userId = this.getParams().userId || '';
-        this.success(await PostService.getFeed(userId, page));
-    };
-
-    combinedFeed = async () => {
-        const user = this.getUser<{ _id: string }>();
-        const options = this.getQueryFilters();
-        this.success(await PostService.getCombinedFeed(user._id, options));
-    };
-
-    byUser = async () => {
+    async getPostsByUser() {
         const userId = this.requireParam('userId');
         const options = this.getQueryFilters();
-        this.success(await PostService.getPostsByUser(userId, options));
-    };
 
-    byTag = async () => {
+        const result = await PostService.getPostsByUser(userId, options);
+        this.success(result);
+    }
+
+    async getPostsByTag() {
         const tag = this.requireParam('tag');
         const options = this.getQueryFilters();
-        this.success(await PostService.getPostsByTag(tag, options));
-    };
 
-    tagInfo = async () => {
+        const result = await PostService.getPostsByTag(tag, options);
+        this.success(result);
+    }
+
+    async getTagInfo() {
         const name = this.requireParam('name');
         const result = await PostService.getTagInfo(name);
-        if (!result) this.throwValidationError('Tag not found');
-        this.success(result);
-    };
 
-    trendingTags = async () => {
+        this.success(result);
+    }
+
+    async getTrendingTags() {
         const options = this.getQueryFilters();
-        this.success(await PostService.getTrendingTags(options));
-    };
+        const result = await PostService.getTrendingTags(options);
+        this.success(result);
+    }
 }
 
 export default new PostController();

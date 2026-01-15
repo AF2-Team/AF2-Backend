@@ -11,7 +11,9 @@ export type User = {
     password: string;
 
     avatarUrl?: string | null;
+    avatarFileId?: string | null;
     bio?: string | null;
+    coverFileId?: string | null;
 
     resetPasswordToken?: string | null;
     resetPasswordExpires?: Date | null;
@@ -61,6 +63,22 @@ export default class UserModel extends MongooseModelBase {
             avatarUrl: {
                 type: String,
                 trim: true,
+                default: null,
+            },
+
+            avatarFileId: {
+                type: String,
+                default: null,
+            },
+
+            coverUrl: {
+                type: String,
+                trim: true,
+                default: null,
+            },
+
+            coverFileId: {
+                type: String,
                 default: null,
             },
 

@@ -115,23 +115,46 @@ class UserService extends BaseService {
         if (!userId) throw new ValidationError('User id is required');
         if (!file) throw new ValidationError('Avatar file is required');
 
+        const userRepo = Database.repository('main', 'user');
+        const currentUser = await userRepo.getById(userId);
+
+        if (currentUser?.avatarFileId) {
+            await ImageKitService.delete(currentUser.avatarFileId);
+        }
+
         const res = (await ImageKitService.upload(file, 'avatars')) as any;
         if (!res?.url || !res?.fileId) throw new ValidationError('Failed to upload avatar');
 
-        return Database.repository('main', 'user').update(userId, {
+        const updatedUser = await userRepo.update(userId, {
             avatarUrl: res.url,
+            avatarFileId: res.fileId,
         });
+
+        return {
+            id: updatedUser._id || updatedUser.id,
+            username: updatedUser.username,
+            avatarUrl: updatedUser.avatarUrl,
+            updatedAt: updatedUser.updatedAt,
+        };
     }
 
     async updateCover(userId: string, file: any) {
         if (!userId) throw new ValidationError('User id is required');
         if (!file) throw new ValidationError('Cover file is required');
 
+        const userRepo = Database.repository('main', 'user');
+        const currentUser = await userRepo.getById(userId);
+
+        if (currentUser?.coverFileId) {
+            await ImageKitService.delete(currentUser.coverFileId);
+        }
+
         const res = (await ImageKitService.upload(file, 'covers')) as any;
         if (!res?.url || !res?.fileId) throw new ValidationError('Failed to upload cover');
 
-        return Database.repository('main', 'user').update(userId, {
+        return userRepo.update(userId, {
             coverUrl: res.url,
+            coverFileId: res.fileId,
         });
     }
 

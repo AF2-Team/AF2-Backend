@@ -60,9 +60,20 @@ class UserController extends ControllerBase {
         const user = this.getUser<{ _id: string }>();
         const req = this.getRequest();
         const file = (req as any).file;
+
         const result = await UserService.updateAvatar(user!._id, file);
 
         this.success(result, 'Avatar updated');
+    }
+
+    async uploadCover() {
+        const user = this.getUser<{ _id: string }>();
+        const req = this.getRequest();
+        const file = (req as any).file;
+
+        const result = await UserService.updateCover(user!._id, file);
+
+        this.success(result, 'Cover updated');
     }
 
     async posts() {

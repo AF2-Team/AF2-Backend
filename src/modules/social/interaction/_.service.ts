@@ -15,25 +15,32 @@ class InteractionService extends BaseService {
     private getUserRepo() {
         return Database.repository('main', 'user');
     }
-   async toggleLike(userId: string, postId: string) {
+   // --- CORRECCIÓN 1: TOGGLE INTELIGENTE ---
+    async toggleLike(userId: string, postId: string) {
         const interactionRepo = this.getInteractionRepo();
         
-        // Buscamos si existe CUALQUIER interacción (activa o inactiva)
+        // [CLAVE] Buscamos interacción existente IGNORANDO el status
+        // Así encontramos si ya le dio like antes (aunque ahora sea status 0)
         const existing = await interactionRepo.getOne({
             user: userId,
             post: postId,
             type: 'like'
-            // [IMPORTANTE] Quitamos 'status: 1' para encontrar las borradas también
         });
 
         let isLiked = false;
 
-        if (existing && existing.status === 1) {
-            // Si existe y está ACTIVA -> Quitamos like
-            await this.unlikePost(userId, postId);
-            isLiked = false;
+        if (existing) {
+            if (existing.status === 1) {
+                // Si existe y está activo -> Quitamos like
+                await this.unlikePost(userId, postId);
+                isLiked = false;
+            } else {
+                // Si existe pero está inactivo (0) -> Reactivamos
+                await this.likePost(userId, postId);
+                isLiked = true;
+            }
         } else {
-            // Si NO existe O existe pero está BORRADA (status 0) -> Ponemos like
+            // Si NO existe registro alguno -> Creamos uno nuevo
             await this.likePost(userId, postId);
             isLiked = true;
         }
@@ -45,7 +52,7 @@ class InteractionService extends BaseService {
         };
     }
 
-    // --- CORRECCIÓN 2: LIKE QUE REACTIVA ---
+    // --- CORRECCIÓN 2: REACTIVAR EN LUGAR DE DUPLICAR ---
     async likePost(userId: string, postId: string) {
         this.validateRequired({ userId, postId }, ['userId', 'postId']);
 
@@ -57,31 +64,31 @@ class InteractionService extends BaseService {
             throw new NotFoundError('Post', postId);
         }
 
-        // Buscamos sin filtrar por status
+        // [CLAVE] Buscamos SIN filtrar por status
         const existing = await interactionRepo.getOne({
             user: userId,
             post: postId,
             type: 'like',
         });
 
+        // CASO A: YA EXISTE EL REGISTRO
         if (existing) {
             if (existing.status === 1) {
                 return { liked: true, alreadyLiked: true };
             } else {
-                // [FIX] SI EXISTE PERO ESTABA BORRADO (Status 0), LO REACTIVAMOS
+                // ESTABA BORRADO (Status 0) -> LO REACTIVAMOS A 1
                 await interactionRepo.update(existing._id.toString(), { status: 1 });
                 
-                // Sumamos contador
                 await postRepo.update(postId, { likesCount: (post.likesCount || 0) + 1 });
                 
-                // Notificamos si corresponde
                 if (post.user.toString() !== userId) this.sendNotify(post, userId, postId);
                 
                 return { liked: true };
             }
         }
 
-        // SOLO SI NO EXISTE ABSOLUTAMENTE NADA, CREAMOS
+        // CASO B: NO EXISTE REGISTRO -> CREAMOS UNO NUEVO
+        // Solo llegamos aquí si de verdad es la primera vez
         await interactionRepo.create({
             user: userId,
             post: postId,
@@ -101,7 +108,7 @@ class InteractionService extends BaseService {
         const interactionRepo = this.getInteractionRepo();
         const postRepo = this.getPostRepo();
 
-        // Para unlike sí buscamos explícitamente el activo
+        // Para borrar sí buscamos el activo
         const like = await interactionRepo.getOne({
             user: userId, post: postId, type: 'like', status: 1,
         });
@@ -120,7 +127,6 @@ class InteractionService extends BaseService {
         return { unliked: true };
     }
 
-    // Helper para no repetir código de notificación
     private async sendNotify(post: any, userId: string, postId: string) {
         try {
             await NotificationService.notify({
@@ -132,6 +138,7 @@ class InteractionService extends BaseService {
             });
         } catch (error) { console.error('Notif Error:', error); }
     }
+
     async createComment(userId: string, postId: string, text: string) {
         this.validateRequired({ userId, postId, text }, ['userId', 'postId', 'text']);
 
@@ -186,6 +193,9 @@ class InteractionService extends BaseService {
                 console.error('Failed to send comment notification:', error);
             }
         }
+        if (comment.populate) {
+        await comment.populate('user', 'name username avatarUrl');
+    }
 
         return comment;
     }
@@ -206,6 +216,16 @@ class InteractionService extends BaseService {
             type: 'comment',
             status: 1,
         });
+
+      if (result.length > 0) {
+    const repo = interactionRepo as any;
+    if (repo.model) {
+        await repo.model.populate(result, { 
+            path: 'user', 
+            select: 'name username avatarUrl' 
+        });
+    }
+}
 
         return result;
     }

@@ -1,6 +1,7 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import PostService from './_.service.js';
 import FeedService from '@modules/feed/_.service.js';
+import InteractionService from '@modules/social/interaction/_.service.js';
 class PostController extends ControllerBase {
     async createPost() {
         const user = this.getUser<{ _id: string }>();
@@ -120,6 +121,28 @@ class PostController extends ControllerBase {
         const result = await PostService.getTrendingTags(options);
         this.success(result);
     }
+    addComment = async () => {
+        const user = this.getUser<{ _id: string }>();
+        const postId = this.requireParam('id'); // Usamos 'id' de la URL /post/:id/comment
+        const { text } = this.getBody(); 
+
+        const result = await InteractionService.createComment(user._id, postId, text);
+        this.success(result);
+    };
+
+    // Leer Comentarios
+    getComments = async () => {
+        const postId = this.requireParam('id'); // Usamos 'id' de la URL /post/:id/comments
+        const { page, limit } = this.getQuery();
+
+        const result = await InteractionService.getComments(postId, { 
+            pagination: { page: Number(page) || 1, limit: Number(limit) || 20 },
+            sort: { createdAt: -1 } // Más recientes primero
+        });
+        
+        this.success(result);
+    };
 }
+
 
 export default new PostController();

@@ -323,24 +323,9 @@ class PostService extends BaseService {
         });
     }
 
-    async getTrendingTags(options: any) {
+    async getTrendingTags() {
         const tagRepo = this.getTagRepo();
-        const repo = tagRepo as any;
-
-        if (repo.getTrending) {
-            return repo.getTrending(options);
-        }
-
-        return tagRepo.getAllActive(
-            {
-                ...options,
-                order: [['postsCount', 'desc']],
-            },
-            {
-                status: 1,
-                postsCount: { $gt: 0 },
-            },
-        );
+        return tagRepo.getTrending(10);
     }
 }
 

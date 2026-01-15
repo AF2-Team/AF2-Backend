@@ -10,6 +10,8 @@ type FeedItem = {
     score: number;
 };
 
+
+
 class FeedService extends BaseService {
     private calculateScore(post: any): number {
         if (!post) return 0;
@@ -21,6 +23,21 @@ class FeedService extends BaseService {
             (post.favoritesCount || 0) * 2
         );
     }
+    
+    private cleanPost(doc: any) {
+    if (!doc) return null;
+    const obj = doc.toObject ? doc.toObject() : doc;
+    // Rompemos referencia circular de usuario
+    if (obj.user && obj.user._id) {
+        obj.user = { 
+            _id: obj.user._id, 
+            name: obj.user.name, 
+            username: obj.user.username, 
+            avatarUrl: obj.user.avatarUrl 
+        };
+    }
+    return obj;
+}
 
     async getFeed(userId: string | undefined, options: ProcessedQueryFilters) {
         try {
@@ -71,12 +88,12 @@ class FeedService extends BaseService {
                 where,
             );
 
-            const scored: FeedItem[] = posts.map((post: any) => ({
-                type: post.isRepost ? 'repost' : 'post',
-                post,
-                createdAt: post.createdAt || new Date(),
-                score: this.calculateScore(post),
-            }));
+          const scored: FeedItem[] = posts.map((post: any) => ({
+    type: post.isRepost ? 'repost' : 'post',
+    post: this.cleanPost(post), // <--- AQUÍ ESTÁ LA CLAVE ANTICRASH
+    createdAt: post.createdAt || new Date(),
+    score: this.calculateScore(post),
+}));
 
             scored.sort((a, b) => {
                 if (a.score !== b.score) return b.score - a.score;

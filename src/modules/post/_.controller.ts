@@ -1,6 +1,6 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import PostService from './_.service.js';
-
+import FeedService from '@modules/feed/_.service.js';
 class PostController extends ControllerBase {
     async createPost() {
         const user = this.getUser<{ _id: string }>();
@@ -26,7 +26,20 @@ class PostController extends ControllerBase {
 
         this.success(result);
     }
-
+    getFeed = async () => {
+        const user = this.getUser<{ _id: string } | null>();
+        // Simulamos las opciones para reutilizar el servicio existente
+        const options = { pagination: { limit: 20 }, raw: this.getQuery() };
+        
+        // Llamamos al servicio de Feed existente
+        const result = await FeedService.getFeed(user?._id, options as any);
+        
+        // [TRUCO] Extraemos solo los posts limpios para que Android no se rompa
+        // Android espera List<Post>, Feed devuelve { items: [{post: ...}], ... }
+        const simpleList = result.items.map((item: any) => item.post);
+        
+        this.success(simpleList);
+    };
     async updatePost() {
         const user = this.getUser<{ _id: string }>();
 

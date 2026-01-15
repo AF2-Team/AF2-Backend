@@ -10,7 +10,7 @@ router.post('/', AuthMiddleware.authenticate, UploadMiddleware.memory.array('med
 router.get('/:id', PostController.getPost);
 router.put('/:id', AuthMiddleware.authenticate, PostController.updatePost);
 router.delete('/:id', AuthMiddleware.authenticate, PostController.deletePost);
-
+router.get('/', AuthMiddleware.authenticate, PostController.getFeed);
 // Media adicional
 router.post(
     '/:id/media',

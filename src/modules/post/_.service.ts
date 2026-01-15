@@ -99,7 +99,9 @@ class PostService extends BaseService {
         }
 
         const newPost = await postRepo.create(postData);
-
+        if (newPost.populate) {
+            await newPost.populate('user', 'name username avatarUrl');
+        }
         try {
             const repo = postRepo as any;
             if (repo.getByIdPopulated) {

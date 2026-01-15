@@ -25,7 +25,7 @@ router.get('/:id/reposts', PostController.getPostReposts);
 
 // Interacciones (solo contadores)
 router.get('/:id/interactions', PostController.getPostInteractions);
-router.post('/:id/like', AuthMiddleware.authenticate, InteractionController.toggleLike);
+router.post('/:postId/like', AuthMiddleware.authenticate, InteractionController.toggleLike);
 // Filtros
 router.get('/user/:userId', PostController.getPostsByUser);
 router.get('/tag/:tag', PostController.getPostsByTag);

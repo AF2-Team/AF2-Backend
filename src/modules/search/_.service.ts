@@ -1,7 +1,6 @@
 import { BaseService } from '@bases/service.base.js';
 import { Database } from '@database/index.js';
 import { ProcessedQueryFilters } from '@rules/api-query.type.js';
-import SearchHistoryRepository from '@database/repositories/main/searchHistory.repository.js';
 
 interface SearchResult {
     users: any[];
@@ -33,11 +32,16 @@ class SearchService extends BaseService {
         return Database.repository('main', 'follow');
     }
 
-    private getSearchHistoryRepo() {
-        return SearchHistoryRepository;
+    private getHistoryRepo() {
+        return Database.repository('main', 'history');
     }
 
-    async search(query: string, type: string, userId: string | undefined, options: ProcessedQueryFilters) {
+    async search(
+        query: string,
+        type: string,
+        userId: string | undefined,
+        options: ProcessedQueryFilters,
+    ): Promise<SearchResult> {
         const q = query ? String(query).trim() : '';
 
         if (!q || q.length < 2) {
@@ -48,7 +52,7 @@ class SearchService extends BaseService {
         const searchType = validTypes.includes(type as any) ? type : 'all';
 
         if (userId) {
-            await this.saveSearchHistory(userId, q, searchType);
+            await this.saveHistory(userId, q, searchType);
         }
 
         const normalizedQuery = q.toLowerCase();
@@ -400,43 +404,68 @@ class SearchService extends BaseService {
         return suggestions;
     }
 
-    private async saveSearchHistory(userId: string, query: string, type: string): Promise<void> {
+    private async saveHistory(userId: string, query: string, type: string): Promise<void> {
         try {
-            const historyRepo = this.getSearchHistoryRepo();
+            const historyRepo = this.getHistoryRepo();
 
-            const hasRecent = await historyRepo.hasRecentSearch(userId, query, type, 5);
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
-            if (!hasRecent) {
+            const existing = await historyRepo.getOne({
+                user: userId,
+                query,
+                type,
+                createdAt: { $gt: fiveMinutesAgo },
+                status: 1,
+            });
+
+            if (!existing) {
                 await historyRepo.create({
                     user: userId,
                     query,
                     type,
                     createdAt: new Date(),
                     status: 1,
-                } as any);
+                });
             }
         } catch (error) {
-            // Silenciar errores
+            // Silenciar errores de historial
         }
     }
 
-    async clearSearchHistory(userId: string): Promise<boolean> {
+    async getHistory(userId: string): Promise<any[]> {
         this.validateRequired({ userId }, ['userId']);
 
-        const historyRepo = this.getSearchHistoryRepo();
-
-        return await historyRepo.clearUserHistory(userId);
+        const historyRepo = this.getHistoryRepo();
+        return historyRepo.getAllActive(
+            {
+                order: [['createdAt', 'desc']],
+                pagination: { limit: 20 },
+            },
+            {
+                user: userId,
+                status: 1,
+            },
+        );
     }
 
-    async getSearchHistory(userId: string): Promise<any[]> {
+    async clearHistory(userId: string): Promise<boolean> {
         this.validateRequired({ userId }, ['userId']);
 
-        const historyRepo = this.getSearchHistoryRepo();
+        const historyRepo = this.getHistoryRepo();
 
-        return await historyRepo.getByUser(userId, {
-            order: [['createdAt', 'desc']],
-            pagination: { limit: 20 },
-        });
+        const historyItems = await historyRepo.getAllActive(
+            {},
+            {
+                user: userId,
+                status: 1,
+            },
+        );
+
+        for (const item of historyItems) {
+            await historyRepo.update(item._id.toString(), { status: 0 });
+        }
+
+        return true;
     }
 }
 

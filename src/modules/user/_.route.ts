@@ -9,7 +9,7 @@ router.get('/me', AuthMiddleware.authenticate, UserController.getMe);
 router.get('/username/:username', AuthMiddleware.authenticate, UserController.getByUsername);
 
 // Perfil propio
-router.put('/me', AuthMiddleware.authenticate, UserController.updateMe);
+router.patch('/me', AuthMiddleware.authenticate, UserController.updateMe);
 router.delete('/me', AuthMiddleware.authenticate, UserController.deleteMe);
 
 router.patch(
@@ -31,7 +31,7 @@ router.get('/:id/reposts', UserController.reposts);
 router.get('/:id/favorites', UserController.favorites);
 
 // Social
-router.get('/:userId/following', UserController.following);
-router.get('/:userId/followers', UserController.followers);
+router.get('/me/following', AuthMiddleware.authenticate, UserController.following);
+router.get('/me/followers', AuthMiddleware.authenticate, UserController.followers);
 
 export default router;

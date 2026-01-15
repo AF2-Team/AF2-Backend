@@ -44,6 +44,35 @@ class FavoriteRepository extends MongooseRepositoryBase<typeof FavoriteModel> {
     async reactivate(id: string) {
         return this.model.findByIdAndUpdate(id, { status: 1 }, { new: true }).exec();
     }
+
+    async getFavoritesWithPosts(userId: string, options: any = {}) {
+        const limit = options.pagination?.limit || 10;
+        const offset = options.pagination?.offset || 0;
+
+        const favorites = await this.model
+            .find({
+                user: userId,
+                status: 1,
+            })
+            .sort({ createdAt: -1 })
+            .skip(offset)
+            .limit(limit)
+            .populate({
+                path: 'post',
+                populate: { path: 'user', select: 'username name avatar' },
+            })
+            .lean()
+            .exec();
+
+        return favorites.map((fav: any) => {
+            if (fav.post) {
+                // Estandarizamos el autor para que el frontend lo reciba igual que en el feed
+                fav.post.author = fav.post.user;
+                fav.post.id = fav.post._id;
+            }
+            return fav;
+        });
+    }
 }
 
 export default new FavoriteRepository();

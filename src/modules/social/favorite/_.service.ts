@@ -30,7 +30,7 @@ class FavoriteService extends BaseService {
             if (existingFavorite.status === 1) {
                 return { favorited: true, alreadyFavorited: true };
             }
-            
+
             // Si existe pero no está activo (status 0 u otro), lo reactivamos
             await (favoriteRepo as any).reactivate(existingFavorite._id);
         } else {
@@ -79,10 +79,7 @@ class FavoriteService extends BaseService {
         this.validateRequired({ userId }, ['userId']);
 
         const favoriteRepo = this.getFavoriteRepo();
-        return favoriteRepo.getAllActive(options, {
-            user: userId,
-            status: 1,
-        });
+        return (favoriteRepo as any).getFavoritesWithPosts(userId, options);
     }
 }
 

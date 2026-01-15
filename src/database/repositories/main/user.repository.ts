@@ -17,9 +17,8 @@ class UserRepository extends MongooseRepositoryBase<User> {
     }
 
     async findAnything(id: string) {
-    // Aquí sí tienes acceso a this.model
     return this.model.findById(id).select('+password').exec();
-}
+    }
 }
 
 export default new UserRepository();

@@ -46,14 +46,14 @@ class FollowService extends BaseService {
             status: 1,
         });
 
-        if (!follow) return { unfollowed: false };
+        if (!follow) return { followed: false };
 
         await repo.update(follow._id.toString(), { status: 0 });
 
         await userRepo.update(targetUserId, { $inc: { followersCount: -1 } });
         await userRepo.update(followerId, { $inc: { followingCount: -1 } });
         
-        return { unfollowed: true };
+        return { followed: false };
     }
 
     async getFollowers(userId: string, options: any) {
@@ -69,14 +69,16 @@ class FollowService extends BaseService {
 
         const existingFollowing: any = await FollowRepository.findRelationship(userId, tagId, 'Tag');
 
-        if (existingFollowing) return { followed: true };
-
-        await repo.create({
-            follower: userId,
-            target: tagId,
-            targetModel: 'Tag',
-            status: 1,
-        });
+        
+        if (existingFollowing) {
+            if(existingFollowing.status === 1) {
+                return {followed: true};
+            }
+            await FollowRepository.reactivate(existingFollowing._id);
+            return { followed: true };
+          
+        }
+        await FollowRepository.createFollow(userId, tagId, 'Tag');
 
         return { followed: true };
     }

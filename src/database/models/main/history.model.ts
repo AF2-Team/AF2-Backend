@@ -1,9 +1,9 @@
 import { Schema } from 'mongoose';
 import { MongooseModelBase } from '@database/models/bases/mongoose.model.js';
 
-export default class SearchHistoryModel extends MongooseModelBase {
+export default class HistoryModel extends MongooseModelBase {
     static override get modelName(): string {
-        return 'SearchHistory';
+        return 'History';
     }
 
     static override definition() {

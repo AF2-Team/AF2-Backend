@@ -29,16 +29,15 @@ class TagRepository extends MongooseRepositoryBase<typeof TagModel> {
         });
     }
 
-    async getTrending(options: any = {}) {
-        return this.getAll(
-            {
-                ...options,
-                order: [['postsCount', 'desc']],
-            },
-            {
-                status: 1,
-            },
-        );
+    async getTrending(limit = 10) {
+        return this.execute('getTrending', async () => {
+            return this.model
+                .find({ status: 1, postsCount: { $gt: 0 } })
+                .sort({ postsCount: -1 })
+                .limit(limit)
+                .lean()
+                .exec();
+        });
     }
 }
 

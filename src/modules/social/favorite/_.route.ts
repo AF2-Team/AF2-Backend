@@ -9,3 +9,4 @@ router.delete('/posts/:postId', AuthMiddleware.authenticate, FavoriteController.
 router.get('/me', AuthMiddleware.authenticate, FavoriteController.getMyFavorites);
 
 export default router;
+

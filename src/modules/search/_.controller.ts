@@ -1,5 +1,6 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import SearchService from './_.service.js';
+import { AuthError } from '@errors/auth.error.js';
 
 class SearchController extends ControllerBase {
     async search() {

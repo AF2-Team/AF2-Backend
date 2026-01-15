@@ -1,5 +1,6 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import ConversationService from './_.service.js';
+import { AuthError, NotFoundError } from '@errors';
 
 class ConversationController extends ControllerBase {
     async getMyConversations() {
@@ -14,6 +15,7 @@ class ConversationController extends ControllerBase {
         const { conversationId } = this.getParams();
         const result = await ConversationService.getConversation(conversationId);
 
+        if (!result) throw new NotFoundError('Conversation', conversationId);
         this.success(result);
     }
 

@@ -23,34 +23,27 @@ class FavoriteService extends BaseService {
             throw new NotFoundError('Post', postId);
         }
 
-        const exists = await favoriteRepo.getOne({
-            user: userId,
-            post: postId,
-            status: 1,
-        });
+        const existingFavorite = await (favoriteRepo as any).findFavorite(userId, postId);
 
-        if (exists) {
-            return { favorited: true, alreadyFavorited: true };
-        }
+        if (existingFavorite) {
+            // Si ya existe y está activo, retornamos
+            if (existingFavorite.status === 1) {
+                return { favorited: true, alreadyFavorited: true };
+            }
 
-        await favoriteRepo.create({
-            user: userId,
-            post: postId,
-            status: 1,
-        });
-
-        await postRepo.update(postId, {
-            favoritesCount: (post.favoritesCount || 0) + 1,
-        });
-
-        if (userId && post.user.toString() !== userId) {
-            await NotificationService.notify({
-                user: post.user.toString(),
-                actor: userId,
-                type: 'favorite',
-                entityId: postId,
+            // Si existe pero no está activo (status 0 u otro), lo reactivamos
+            await (favoriteRepo as any).reactivate(existingFavorite._id);
+        } else {
+            // Si no existe, lo creamos
+            await favoriteRepo.create({
+                user: userId,
+                post: postId,
+                status: 1,
             });
         }
+
+        // In both cases (reactivation or creation), increment the counter and notify.
+        await postRepo.update(postId, { $inc: { favoritesCount: 1 } });
 
         return { favorited: true };
     }
@@ -75,9 +68,8 @@ class FavoriteService extends BaseService {
 
         const post = await postRepo.getById(postId);
         if (post) {
-            await postRepo.update(postId, {
-                favoritesCount: Math.max(0, (post.favoritesCount || 0) - 1),
-            });
+            // Use atomic operation to prevent race conditions
+            await postRepo.update(postId, { $inc: { favoritesCount: -1 } });
         }
 
         return { unfavorited: true };
@@ -87,10 +79,7 @@ class FavoriteService extends BaseService {
         this.validateRequired({ userId }, ['userId']);
 
         const favoriteRepo = this.getFavoriteRepo();
-        return favoriteRepo.getAllActive(options, {
-            user: userId,
-            status: 1,
-        });
+        return (favoriteRepo as any).getFavoritesWithPosts(userId, options);
     }
 }
 

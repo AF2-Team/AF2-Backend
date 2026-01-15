@@ -1,5 +1,6 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import MessageService from './_.service.js';
+import { AuthError } from '@errors/auth.error.js';
 
 class MessageController extends ControllerBase {
     async sendMessage() {
@@ -23,6 +24,7 @@ class MessageController extends ControllerBase {
     async markMessagesAsRead() {
         const user = this.getUser<{ _id: string }>();
         const conversationId = this.requireParam('conversationId');
+        await MessageService.markAsRead(conversationId, user._id);
 
         await MessageService.markAsRead(conversationId, user!._id);
         this.success({ read: true });

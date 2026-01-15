@@ -1,5 +1,6 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import FavoriteService from './_.service.js';
+import { AuthError } from '@errors/auth.error.js';
 
 class FavoriteController extends ControllerBase {
     async addFavorite() {

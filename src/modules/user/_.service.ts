@@ -1,7 +1,7 @@
 import { BaseService } from '@bases/service.base.js';
 import { Database } from '@database/index.js';
 import { ProcessedQueryFilters } from '@rules/api-query.type.js';
-import { ValidationError } from '@errors';
+import { NotFoundError, ValidationError } from '@errors';
 import mongoose from 'mongoose';
 import { ImageKitService } from '@providers/imagekit.provider.js';
 
@@ -67,12 +67,20 @@ class UserService extends BaseService {
     async updateProfile(userId: string, data: any) {
         if (!userId) throw new ValidationError('User id is required');
 
-        const allowed = ['name', 'bio', 'avatarUrl', 'coverUrl'];
+        // Solo permitimos modificar campos de texto.
+        // Las imágenes se manejan exclusivamente en updateAvatar/updateCover para gestionar ImageKit correctamente.
+        const allowed = ['name', 'bio'];
         const payload = this.sanitizeData(data, allowed);
+
+        if (typeof payload.name === 'string' && payload.name.trim().length === 0)
+            throw new ValidationError('Name cannot be empty');
+
+        if (typeof payload.bio === 'string' && payload.bio.length > 300)
+            throw new ValidationError('Bio cannot exceed 300 characters');
 
         const updated = await Database.repository('main', 'user').update(userId, payload);
 
-        if (!updated) throw new ValidationError('User not found');
+        if (!updated) throw new NotFoundError('User not found');
 
         return updated;
     }
@@ -82,7 +90,7 @@ class UserService extends BaseService {
 
         const updated = await Database.repository('main', 'user').update(userId, { status: 0 });
 
-        if (!updated) throw new ValidationError('User not found');
+        if (!updated) throw new NotFoundError('User not found');
 
         return updated;
     }
@@ -92,11 +100,7 @@ class UserService extends BaseService {
 
         const followRepo = Database.repository('main', 'follow');
 
-        return followRepo.getAllActive(options, {
-            follower: userId,
-            targetType: 'user',
-            status: 1,
-        });
+        return (followRepo as any).getFollowingUsers(userId, options);
     }
 
     async getFollowers(userId: string, options: ProcessedQueryFilters) {
@@ -104,11 +108,7 @@ class UserService extends BaseService {
 
         const followRepo = Database.repository('main', 'follow');
 
-        return followRepo.getAllActive(options, {
-            target: userId,
-            targetType: 'user',
-            status: 1,
-        });
+        return (followRepo as any).getFollowersUsers(userId, options);
     }
 
     async updateAvatar(userId: string, file: any) {

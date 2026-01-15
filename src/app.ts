@@ -247,7 +247,7 @@ export class App {
 
         // 3. Manejador de errores global
         this.app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-            res.status(err.status || 500).json({
+            res.status(err.statusCode || 500).json({
                 message: err.userMessage || 'Internal Server Error',
             });
         });

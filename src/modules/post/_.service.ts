@@ -219,20 +219,51 @@ class PostService extends BaseService {
         if (!post || post.status !== 1) throw new NotFoundError('Post', postId);
         if (post.user.toString() !== userId) throw new ValidationError('Unauthorized');
 
-        const allowed = ['text', 'url', 'fontStyle'];
+        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+        if (Date.now() - new Date(post.createdAt).getTime() > ONE_DAY_MS) {
+            throw new ValidationError('Cannot edit post after 24 hours');
+        }
+
+        const allowed = ['text', 'fontStyle'];
         const payload = this.sanitizeData(data, allowed);
+
 
         if (payload.text !== undefined) {
             const newText = String(payload.text).trim();
             if (newText.length > 4000) throw new ValidationError('Post text cannot exceed 4000 characters');
-            if (!newText && !post.url && !post.media?.length)
-                throw new ValidationError('Post must contain text, URL, or media');
-
+            
             payload.text = newText;
 
             if (newText !== (post.text || '')) {
+                const tagRepo = this.getTagRepo();
                 const extracted = extractHashtags(newText);
-                payload.tags = extracted.map(normalizeHashtag);
+                // Usamos Set para asegurar que no haya tags duplicados en el mismo post y evitar conteo doble
+                const newTags = [...new Set(extracted.map(normalizeHashtag))];
+                payload.tags = newTags;
+
+                const oldTags = post.tags || [];
+
+                // 1. Decrementar tags removidos
+                const removedTags = oldTags.filter((t: string) => !newTags.includes(t));
+                for (const tagNorm of removedTags) {
+                    const tag = await tagRepo.getOne({ normalized: tagNorm });
+                    if (tag && tag.postsCount > 0) {
+                        await tagRepo.update(tag.id, { postsCount: tag.postsCount - 1 });
+                    }
+                }
+
+                // 2. Incrementar o crear tags nuevos
+                const addedTags = newTags.filter((t: string) => !oldTags.includes(t));
+                for (const tagNorm of addedTags) {
+                    const rawTag = extracted.find((r) => normalizeHashtag(r) === tagNorm) || tagNorm;
+                    const tag = await tagRepo.getOne({ normalized: tagNorm });
+
+                    if (!tag) {
+                        await tagRepo.create({ name: rawTag, normalized: tagNorm, postsCount: 1, status: 1 });
+                    } else {
+                        await tagRepo.update(tag.id, { postsCount: (tag.postsCount || 0) + 1 });
+                    }
+                }
             }
         }
 
@@ -247,6 +278,11 @@ class PostService extends BaseService {
 
         if (!post) throw new NotFoundError('Post', postId);
         if (post.user.toString() !== userId) throw new ValidationError('Unauthorized');
+
+        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+        if (Date.now() - new Date(post.createdAt).getTime() > ONE_DAY_MS) {
+            throw new ValidationError('Cannot delete post after 24 hours');
+        }
 
         await postRepo.update(postId, { status: 0 });
 

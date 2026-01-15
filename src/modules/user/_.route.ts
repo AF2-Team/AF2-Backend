@@ -15,22 +15,17 @@ router.delete('/me', AuthMiddleware.authenticate, UserController.deleteMe);
 router.patch(
     '/me/avatar',
     AuthMiddleware.authenticate,
-    UploadMiddleware.memory.single('media'),
+    UploadMiddleware.memory.single('avatarUrl'),
     UserController.uploadAvatar,
 );
 router.patch(
     '/me/cover',
     AuthMiddleware.authenticate,
     UploadMiddleware.memory.single('media'),
-    UserController.uploadAvatar,
+    UserController.uploadCover,
 );
 
-
-router.get(
-    '/:id', 
-    AuthMiddleware.authenticate, 
-    UserController.getById
-);
+router.get('/:id', AuthMiddleware.authenticate, UserController.getById);
 router.get('/:id/posts', UserController.posts);
 router.get('/:id/reposts', UserController.reposts);
 router.get('/:id/favorites', UserController.favorites);

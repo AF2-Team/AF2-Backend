@@ -31,6 +31,19 @@ class FavoriteRepository extends MongooseRepositoryBase<typeof FavoriteModel> {
             status: 1,
         });
     }
+
+    async findFavorite(userId: string, postId: string) {
+        return this.model
+            .findOne({
+                user: userId,
+                post: postId,
+            })
+            .exec();
+    }
+
+    async reactivate(id: string) {
+        return this.model.findByIdAndUpdate(id, { status: 1 }, { new: true }).exec();
+    }
 }
 
 export default new FavoriteRepository();

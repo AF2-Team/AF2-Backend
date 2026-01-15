@@ -177,6 +177,7 @@ async getByIdPopulated(id: string) {
             ...post,
             author: post.user,
             id: post._id 
+        }));
     }
 }
 

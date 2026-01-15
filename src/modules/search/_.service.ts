@@ -20,7 +20,7 @@ class SearchService extends BaseService {
     }
 
     private getSearchHistoryRepo() {
-        return Database.repository('main', 'searchHistory');
+        return Database.repository('main', 'search-history');
     }
 
     async search(query: string, type: string, userId: string | undefined, options: ProcessedQueryFilters) {

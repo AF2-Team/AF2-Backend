@@ -15,15 +15,15 @@ class SearchController extends ControllerBase {
         this.success(result);
     }
 
-    async getSearchHistory() {
+    async getHistory() {
         const user = this.getUser<{ _id: string }>();
-        const result = await SearchService.getSearchHistory(user!._id);
+        const result = await SearchService.getHistory(user!._id);
         this.success(result);
     }
 
-    async clearSearchHistory() {
+    async clearHistory() {
         const user = this.getUser<{ _id: string }>();
-        await SearchService.clearSearchHistory(user!._id);
+        await SearchService.clearHistory(user!._id);
         this.success({ cleared: true });
     }
 }

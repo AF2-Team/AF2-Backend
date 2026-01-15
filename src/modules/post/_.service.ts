@@ -145,19 +145,9 @@ class PostService extends BaseService {
             user: userId,
             type: 'repost',
             originalPost: originalPostId,
-            text: originalPost.text,
-            url: originalPost.url,
-            fontStyle: originalPost.fontStyle || 'regular',
-            media: originalPost.media || [],
-            tags: originalPost.tags || [],
             status: 1,
             publishStatus: 'published',
         };
-
-        if (originalPost.mediaUrl) {
-            repostData.mediaUrl = originalPost.mediaUrl;
-            repostData.mediaId = originalPost.mediaId;
-        }
 
         const repost = await postRepo.create(repostData);
 

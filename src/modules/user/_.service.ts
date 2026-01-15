@@ -1,10 +1,9 @@
 import { BaseService } from '@bases/service.base.js';
 import { Database } from '@database/index.js';
 import { ProcessedQueryFilters } from '@rules/api-query.type.js';
-import { ValidationError, NotFoundError } from '@errors';
-import { ImageKitService } from '@providers/imagekit.provider.js'
-
+import { NotFoundError, ValidationError } from '@errors';
 import mongoose from 'mongoose';
+import { ImageKitService } from '@providers/imagekit.provider.js';
 
 class UserService extends BaseService {
     async getProfileById(userId: string, viewerId?: string) {
@@ -35,23 +34,24 @@ class UserService extends BaseService {
         const user = await userRepo.getOne({ ...where, status: 1 });
 
         if (!user) {
-            throw new NotFoundError('User');
+            throw new ValidationError('User not found');
         }
 
         const userId = user._id.toString();
 
-        // Usamos los contadores del usuario para followers/following
-        // Solo contamos posts en tiempo real
-        const posts = await postRepo.count({ user: userId, status: 1 });
+        const [posts, followers, following] = await Promise.all([
+            postRepo.count({ user: userId, status: 1 }),
+            followRepo.count({ target: userId, targetType: 'user', status: 1 }),
+            followRepo.count({ follower: userId, targetType: 'user', status: 1 }),
+        ]);
 
         let isFollowing = false;
-        const isMe = viewerId === userId;
 
-        if (viewerId && mongoose.Types.ObjectId.isValid(viewerId) && !isMe) {
+        if (viewerId && mongoose.Types.ObjectId.isValid(viewerId)) {
             const exists = await followRepo.getOne({
                 follower: viewerId,
                 target: userId,
-                targetModel: 'User',
+                targetType: 'user',
                 status: 1,
             });
             isFollowing = !!exists;
@@ -59,24 +59,28 @@ class UserService extends BaseService {
 
         return {
             user,
-            stats: {
-                posts,
-                followers: user.followersCount,
-                following: user.followingCount,
-            },
-            viewer: { isFollowing, isMe },
+            stats: { posts, followers, following },
+            viewer: { isFollowing },
         };
     }
 
     async updateProfile(userId: string, data: any) {
         if (!userId) throw new ValidationError('User id is required');
 
-        const allowed = ['name', 'bio', 'avatarUrl'];
+        // Solo permitimos modificar campos de texto.
+        // Las imágenes se manejan exclusivamente en updateAvatar/updateCover para gestionar ImageKit correctamente.
+        const allowed = ['name', 'bio'];
         const payload = this.sanitizeData(data, allowed);
+
+        if (typeof payload.name === 'string' && payload.name.trim().length === 0)
+            throw new ValidationError('Name cannot be empty');
+
+        if (typeof payload.bio === 'string' && payload.bio.length > 300)
+            throw new ValidationError('Bio cannot exceed 300 characters');
 
         const updated = await Database.repository('main', 'user').update(userId, payload);
 
-        if (!updated) throw new ValidationError('User not found');
+        if (!updated) throw new NotFoundError('User not found');
 
         return updated;
     }
@@ -86,7 +90,7 @@ class UserService extends BaseService {
 
         const updated = await Database.repository('main', 'user').update(userId, { status: 0 });
 
-        if (!updated) throw new ValidationError('User not found');
+        if (!updated) throw new NotFoundError('User not found');
 
         return updated;
     }
@@ -115,22 +119,51 @@ class UserService extends BaseService {
         });
     }
 
-    async updateAvatar(userId: string, file: Express.Multer.File) {
+    async updateAvatar(userId: string, file: any) {
         if (!userId) throw new ValidationError('User id is required');
         if (!file) throw new ValidationError('Avatar file is required');
 
-        const avatarUrl = await ImageKitService.upload(file, 'avatars')
+        const userRepo = Database.repository('main', 'user');
+        const currentUser = await userRepo.getById(userId);
 
-        return Database.repository('main', 'user').update(userId, { avatarUrl });
+        if (currentUser?.avatarFileId) {
+            await ImageKitService.delete(currentUser.avatarFileId);
+        }
+
+        const res = (await ImageKitService.upload(file, 'avatars')) as any;
+        if (!res?.url || !res?.fileId) throw new ValidationError('Failed to upload avatar');
+
+        const updatedUser = await userRepo.update(userId, {
+            avatarUrl: res.url,
+            avatarFileId: res.fileId,
+        });
+
+        return {
+            id: updatedUser._id || updatedUser.id,
+            username: updatedUser.username,
+            avatarUrl: updatedUser.avatarUrl,
+            updatedAt: updatedUser.updatedAt,
+        };
     }
 
-     async updateCover(userId: string, file: Express.Multer.File) {
+    async updateCover(userId: string, file: any) {
         if (!userId) throw new ValidationError('User id is required');
-        if (!file) throw new ValidationError('Avatar file is required');
+        if (!file) throw new ValidationError('Cover file is required');
 
-        const coverUrl = await ImageKitService.upload(file, 'covers')
+        const userRepo = Database.repository('main', 'user');
+        const currentUser = await userRepo.getById(userId);
 
-        return Database.repository('main', 'user').update(userId, { coverUrl});
+        if (currentUser?.coverFileId) {
+            await ImageKitService.delete(currentUser.coverFileId);
+        }
+
+        const res = (await ImageKitService.upload(file, 'covers')) as any;
+        if (!res?.url || !res?.fileId) throw new ValidationError('Failed to upload cover');
+
+        return userRepo.update(userId, {
+            coverUrl: res.url,
+            coverFileId: res.fileId,
+        });
     }
 
     async getUserPosts(userId: string, options: ProcessedQueryFilters) {

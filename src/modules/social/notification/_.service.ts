@@ -7,6 +7,7 @@ type NotifyInput = {
     actor: string;
     type: string;
     entityId?: string;
+    entityModel?: string;
 };
 
 class NotificationService extends BaseService {
@@ -28,7 +29,7 @@ class NotificationService extends BaseService {
 
         const notification = await this.repo().getById(notificationId);
 
-        if (!notification || notification.user !== userId) {
+        if (!notification || notification.user.toString() !== userId) {
             throw new Error('Notification not found');
         }
 
@@ -57,21 +58,54 @@ class NotificationService extends BaseService {
             });
         }
 
-        return true;
+        return {
+            success: true,
+            updatedCount: notifications.length,
+        };
     }
 
     async notify(data: NotifyInput) {
         if (!data?.user || !data?.actor || !data?.type) return null;
         if (data.user === data.actor) return null;
 
-        return this.repo().create({
-            user: data.user,
-            actor: data.actor,
-            type: data.type,
-            entityId: data.entityId,
-            readAt: null,
-            status: 1,
-        });
+        let entityModel = data.entityModel;
+        if (!entityModel) {
+            const modelMap: Record<string, string> = {
+                like: 'Post',
+                comment: 'Interaction',
+                repost: 'Post',
+                follow: 'User',
+                favorite: 'Post',
+                message: 'Conversation',
+            };
+            entityModel = modelMap[data.type] || 'Post';
+        }
+
+        const entity = data.entityId || null;
+
+        try {
+            return await this.repo().create({
+                user: data.user,
+                actor: data.actor,
+                type: data.type,
+                entityModel: entityModel,
+                entity: entity,
+                readAt: null,
+                status: 1,
+            });
+        } catch (error) {
+            console.error('Error creating notification:', {
+                error,
+                data: {
+                    user: data.user,
+                    actor: data.actor,
+                    type: data.type,
+                    entityModel,
+                    entity,
+                },
+            });
+            return null;
+        }
     }
 }
 

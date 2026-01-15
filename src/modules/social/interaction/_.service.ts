@@ -50,12 +50,17 @@ class InteractionService extends BaseService {
         });
 
         if (post.user.toString() !== userId) {
-            await NotificationService.notify({
-                user: post.user.toString(),
-                actor: userId,
-                type: 'like',
-                entityId: postId,
-            });
+            try {
+                await NotificationService.notify({
+                    user: post.user.toString(),
+                    actor: userId,
+                    type: 'like',
+                    entityId: postId,
+                    entityModel: 'Post',
+                });
+            } catch (error) {
+                console.error('Failed to send like notification:', error);
+            }
         }
 
         return { liked: true };
@@ -107,8 +112,8 @@ class InteractionService extends BaseService {
             throw new ValidationError('Comment text cannot be empty');
         }
 
-        if (trimmedText.length > 500) {
-            throw new ValidationError('Comment cannot exceed 500 characters');
+        if (trimmedText.length > 1000) {
+            throw new ValidationError('Comment cannot exceed 1000 characters');
         }
 
         const interactionRepo = this.getInteractionRepo();
@@ -132,12 +137,17 @@ class InteractionService extends BaseService {
         });
 
         if (post.user.toString() !== userId) {
-            await NotificationService.notify({
-                user: post.user.toString(),
-                actor: userId,
-                type: 'comment',
-                entityId: postId,
-            });
+            try {
+                await NotificationService.notify({
+                    user: post.user.toString(),
+                    actor: userId,
+                    type: 'comment',
+                    entityId: comment._id.toString(),
+                    entityModel: 'Interaction',
+                });
+            } catch (error) {
+                console.error('Failed to send comment notification:', error);
+            }
         }
 
         return comment;

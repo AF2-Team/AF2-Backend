@@ -39,7 +39,7 @@ router.get(
 );
 
 // Historial
-router.get('/history', AuthMiddleware.authenticate, SearchController.getSearchHistory);
-router.delete('/history', AuthMiddleware.authenticate, SearchController.clearSearchHistory);
+router.get('/history', AuthMiddleware.authenticate, SearchController.getHistory);
+router.delete('/history', AuthMiddleware.authenticate, SearchController.clearHistory);
 
 export default router;

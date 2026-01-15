@@ -1,126 +1,104 @@
 import { ControllerBase } from '@bases/controller.base.js';
-import { Request, Response } from 'express';
 import UserService from './_.service.js';
-import UserRepository from '@repositories/main/user.repository.js'; // Importante para getMe
-import { ValidationError, NotFoundError } from '@errors';
 
 class UserController extends ControllerBase {
     async getById() {
-        const id = this.requireParam('id');
-        const viewerId = (this.getRequest() as any).user?._id?.toString();
-
+        const { id } = this.getParams();
+        const viewerId = this.getUser<{ _id: string }>()?._id;
         const result = await UserService.getProfileById(id, viewerId);
+
         this.success(result);
-    };
+    }
 
     async getByUsername() {
-        const username = this.requireParam('username');
-        const viewerId = (this.getRequest() as any).user?._id?.toString();
-
+        const { username } = this.getParams();
+        const viewerId = this.getUser<{ _id: string }>()?._id;
         const result = await UserService.getProfileByUsername(username, viewerId);
 
         this.success(result);
-    };
+    }
 
-    // --- CORREGIDO PARA EVITAR EL CRASH DE KOTLIN ---
-    getMe = async (req: Request, _res: Response) => {
-        const tokenUser = (req as any).user;
-        if (!tokenUser) throw new ValidationError('Invalid session');
+    async getMe() {
+        const user = this.getUser<{ _id: string }>();
+        const result = await UserService.getProfileById(user!._id, user!._id);
 
-        const userId = tokenUser._id || tokenUser.userId || tokenUser.id;
+        this.success(result);
+    }
 
-        // 1. Llamamos al servicio para obtener contadores y datos
-        const profile = await UserService.getProfileById(userId.toString(), userId.toString());
+    async updateMe() {
+        const user = this.getUser<{ _id: string }>();
+        const body = this.getBody();
+        const result = await UserService.updateProfile(user!._id, body);
 
-        if (!profile) throw new NotFoundError('User profile not found');
-
-        const userPlain = profile.user.toObject ? profile.user.toObject() : profile.user;
-        const flatResponse = {
-            ...userPlain, // _id, name, username, email, avatarUrl, bio
-            postsCount: profile.stats.posts,
-            followersCount: profile.stats.followers,
-            followingCount: profile.stats.following
-        };
-
-        this.success(flatResponse);
-    };
-
-    updateMe = async (req: Request, _res: Response) => {
-        const userId = (req as any).user._id.toString();
-
-        const result = await UserService.updateProfile(userId, req.body);
         this.success(result, 'Profile updated');
-    };
+    }
 
-    deleteMe = async (req: Request, _res: Response) => {
-        const userId = (req as any).user._id.toString();
+    async deleteMe() {
+        const user = this.getUser<{ _id: string }>();
+        await UserService.deactivate(user!._id);
 
-        await UserService.deactivate(userId);
         this.success({ success: true }, 'Account deactivated');
-    };
+    }
 
-    following = async (req: Request, _res: Response) => {
-        const { userId } = req.params;
+    async following() {
+        const { userId } = this.getParams();
         const options = this.getQueryFilters();
-
         const result = await UserService.getFollowing(userId, options);
+
         this.success(result);
-    };
+    }
 
-    followers = async (req: Request, _res: Response) => {
-        const { userId } = req.params;
+    async followers() {
+        const { userId } = this.getParams();
         const options = this.getQueryFilters();
-
         const result = await UserService.getFollowers(userId, options);
+
         this.success(result);
-    };
+    }
 
-    async uploadAvatar (req: Request, _res: Response) {
-        const userId = (req as any).user._id.toString();
+    async uploadAvatar() {
+        const user = this.getUser<{ _id: string }>();
+        const req = this.getRequest();
+        const file = (req as any).file;
 
-        if (!req.file) {
-            throw this.throwValidationError('Avatar file is required');
-        }
+        const result = await UserService.updateAvatar(user!._id, file);
 
-        const result = await UserService.updateAvatar(userId, req.file);
-        this.success(result, 'Avatar image updated');
-    };
+        this.success(result, 'Avatar updated');
+    }
 
-    async uploadCover (req: Request, _res: Response) {
-        const userId = (req as any).user._id.toString();
+    async uploadCover() {
+        const user = this.getUser<{ _id: string }>();
+        const req = this.getRequest();
+        const file = (req as any).file;
 
-        if (!req.file) {
-            throw this.throwValidationError('Cover image is required');
-        }
+        const result = await UserService.updateCover(user!._id, file);
 
-        const result = await UserService.updateCover(userId, req.file);
-        this.success(result, 'Cover image updated');
-    };
+        this.success(result, 'Cover updated');
+    }
 
-
-    posts = async (req: Request, _res: Response) => {
-        const { id } = req.params;
+    async posts() {
+        const { id } = this.getParams();
         const options = this.getQueryFilters();
-
         const result = await UserService.getUserPosts(id, options);
+
         this.success(result);
-    };
+    }
 
-    reposts = async (req: Request, _res: Response) => {
-        const { id } = req.params;
+    async reposts() {
+        const { id } = this.getParams();
         const options = this.getQueryFilters();
-
         const result = await UserService.getUserReposts(id, options);
-        this.success(result);
-    };
 
-    favorites = async (req: Request, _res: Response) => {
-        const { id } = req.params;
+        this.success(result);
+    }
+
+    async favorites() {
+        const { id } = this.getParams();
         const options = this.getQueryFilters();
-
         const result = await UserService.getUserFavorites(id, options);
+
         this.success(result);
-    };
+    }
 }
 
 export default new UserController();

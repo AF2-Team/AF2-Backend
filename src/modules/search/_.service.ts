@@ -2,6 +2,23 @@ import { BaseService } from '@bases/service.base.js';
 import { Database } from '@database/index.js';
 import { ProcessedQueryFilters } from '@rules/api-query.type.js';
 
+interface SearchResult {
+    users: any[];
+    posts: any[];
+    tags: any[];
+    suggestions: any[];
+}
+
+interface SuggestionItem {
+    type: 'tag' | 'user';
+    name?: string;
+    normalized?: string;
+    postsCount?: number;
+    username?: string;
+    avatarUrl?: string | null;
+    matchType: 'exact' | 'partial';
+}
+
 class SearchService extends BaseService {
     private getUserRepo() {
         return Database.repository('main', 'user');
@@ -11,44 +28,52 @@ class SearchService extends BaseService {
         return Database.repository('main', 'post');
     }
 
-    private getTagRepo() {
-        return Database.repository('main', 'tag');
-    }
-
     private getFollowRepo() {
         return Database.repository('main', 'follow');
     }
 
-    private getSearchHistoryRepo() {
-        return Database.repository('main', 'searchHistory');
+    private getHistoryRepo() {
+        return Database.repository('main', 'history');
     }
 
-    async search(query: string, type: string, userId: string | undefined, options: ProcessedQueryFilters) {
+    async search(
+        query: string,
+        type: string,
+        userId: string | undefined,
+        options: ProcessedQueryFilters,
+    ): Promise<SearchResult> {
         const q = query ? String(query).trim() : '';
 
         if (!q || q.length < 2) {
             return this.getEmptyResult();
         }
 
+        const validTypes = ['user', 'post', 'tag', 'all'] as const;
+        const searchType = validTypes.includes(type as any) ? type : 'all';
+
         if (userId) {
-            await this.saveSearchHistory(userId, q, type);
+            await this.saveHistory(userId, q, searchType);
         }
 
+        const normalizedQuery = q.toLowerCase();
+
         const [users, posts, tags] = await Promise.all([
-            type === 'user' || type === 'all' ? this.searchProfiles(q, options, userId) : [],
-            type === 'post' || type === 'all' ? this.searchPostsAndReposts(q, options, userId) : [],
-            type === 'tag' || type === 'all' ? this.searchTagsWithSuggestions(q, options) : [],
+            searchType === 'user' || searchType === 'all' ? this.searchProfiles(normalizedQuery, options, userId) : [],
+            searchType === 'post' || searchType === 'all'
+                ? this.searchPostsAndReposts(normalizedQuery, options, userId)
+                : [],
+            searchType === 'tag' || searchType === 'all' ? this.searchTagsFromPosts(normalizedQuery, options) : [],
         ]);
 
         return {
-            users: await this.rankProfiles(users, userId),
-            posts: await this.rankPosts(posts, userId),
-            tags: await this.rankTags(tags),
-            suggestions: type === 'all' ? await this.getSearchSuggestions(q) : [],
+            users: await this.rankProfiles(users, userId, normalizedQuery),
+            posts: await this.rankPosts(posts, userId, normalizedQuery),
+            tags: await this.rankTags(tags, normalizedQuery),
+            suggestions: searchType === 'all' ? await this.getSearchSuggestions(normalizedQuery) : [],
         };
     }
 
-    private getEmptyResult() {
+    private getEmptyResult(): SearchResult {
         return {
             users: [],
             posts: [],
@@ -57,164 +82,331 @@ class SearchService extends BaseService {
         };
     }
 
-    private async searchProfiles(query: string, options: ProcessedQueryFilters, searcherId?: string) {
+    private async searchProfiles(query: string, options: ProcessedQueryFilters, searcherId?: string): Promise<any[]> {
         const userRepo = this.getUserRepo();
 
-        return userRepo.getAllActive(options, {
-            $or: [
-                { username: { $regex: query, $options: 'i' } },
-                { name: { $regex: query, $options: 'i' } },
-                { bio: { $regex: query, $options: 'i' } },
-                { 'q.name': query },
-            ],
-            status: 1,
-        });
+        const users = await userRepo.getAllActive(
+            {
+                pagination: options.pagination,
+                order: options.order,
+            },
+            {
+                $or: [
+                    { username: { $regex: query, $options: 'i' } },
+                    { name: { $regex: query, $options: 'i' } },
+                    { bio: { $regex: query, $options: 'i' } },
+                ],
+                status: 1,
+            },
+        );
+
+        return users.map((user) => ({
+            id: user._id || user.id,
+            username: user.username,
+            name: user.name,
+            avatarUrl: user.avatarUrl,
+            bio: user.bio,
+            followersCount: user.followersCount || 0,
+            followingCount: user.followingCount || 0,
+            createdAt: user.createdAt,
+            status: user.status,
+        }));
     }
 
-    private async searchPostsAndReposts(query: string, options: ProcessedQueryFilters, userId?: string) {
+    private async searchPostsAndReposts(
+        query: string,
+        options: ProcessedQueryFilters,
+        userId?: string,
+    ): Promise<any[]> {
         const postRepo = this.getPostRepo();
+
+        const byExactTag = await postRepo.getAllActive(
+            {
+                pagination: { limit: 20 },
+                order: options.order,
+            },
+            {
+                tags: query,
+                publishStatus: 'published',
+                status: 1,
+            },
+        );
 
         const byText = await postRepo.getAllActive(
             {
-                ...options,
-                pagination: { ...options.pagination, limit: (options.pagination?.limit || 20) * 2 },
+                pagination: { limit: 20 },
+                order: options.order,
             },
             {
-                $or: [{ text: { $regex: query, $options: 'i' } }, { 'q.text': query }],
+                text: { $regex: query, $options: 'i' },
                 publishStatus: 'published',
                 status: 1,
             },
         );
 
-        const normalizedQuery = query.toLowerCase();
-        const byTag = await postRepo.getAllActive(
+        const byPartialTag = await postRepo.getAllActive(
             {
-                ...options,
-                pagination: { ...options.pagination, limit: (options.pagination?.limit || 20) * 2 },
+                pagination: { limit: 10 },
+                order: options.order,
             },
             {
-                tags: normalizedQuery,
+                tags: { $regex: query, $options: 'i' },
                 publishStatus: 'published',
                 status: 1,
             },
         );
 
+        const allPosts = [...byExactTag, ...byText, ...byPartialTag];
         const postMap = new Map<string, any>();
-        [...byText, ...byTag].forEach((post) => {
+
+        allPosts.forEach((post) => {
             if (post && post.id) {
+                const score = this.calculatePostRelevance(post, query);
+                post._relevanceScore = score;
                 postMap.set(post.id.toString(), post);
             }
         });
 
-        return Array.from(postMap.values());
+        const postsArray = Array.from(postMap.values());
+        const limit = options.pagination?.limit || 20;
+        const offset = options.pagination?.offset || 0;
+
+        return postsArray.slice(offset, offset + limit);
     }
 
-    private async searchTagsWithSuggestions(query: string, options: ProcessedQueryFilters) {
-        const tagRepo = this.getTagRepo();
+    private calculatePostRelevance(post: any, query: string): number {
+        let score = 0;
+        const text = post.text?.toLowerCase() || '';
+        const tags = post.tags || [];
 
-        const exactTags = await tagRepo.getAllActive(options, {
-            $or: [{ name: { $regex: `^${query}$`, $options: 'i' } }, { normalized: query.toLowerCase() }],
-            status: 1,
-        });
+        if (tags.includes(query)) {
+            score += 1000;
+        }
 
-        const similarTags = await tagRepo.getAllActive(
+        const words = text.split(/\s+/);
+        if (words.includes(query)) {
+            score += 500;
+        }
+
+        if (text.startsWith(query)) {
+            score += 300;
+        }
+
+        if (text.includes(query)) {
+            score += 100;
+        }
+
+        if (tags.some((tag: string) => tag.includes(query))) {
+            score += 150;
+        }
+
+        score += (post.likesCount || 0) * 2;
+        score += (post.commentsCount || 0) * 3;
+        score += (post.repostsCount || 0) * 2;
+
+        const daysOld = (Date.now() - new Date(post.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+        if (daysOld < 7) {
+            score += Math.max(0, 50 - daysOld * 5);
+        }
+
+        return score;
+    }
+
+    private async searchTagsFromPosts(query: string, options: ProcessedQueryFilters): Promise<any[]> {
+        const postRepo = this.getPostRepo();
+
+        const postsWithTags = await postRepo.getAllActive(
             {
-                ...options,
-                pagination: { limit: 10 },
+                pagination: { limit: 50 },
+                order: options.order,
             },
             {
-                $or: [{ name: { $regex: query, $options: 'i' } }, { normalized: { $regex: query, $options: 'i' } }],
+                $or: [{ tags: query }, { tags: { $regex: query, $options: 'i' } }],
+                publishStatus: 'published',
                 status: 1,
-                postsCount: { $gt: 0 },
             },
         );
 
-        return [...exactTags, ...similarTags];
+        const tagCountMap = new Map<string, number>();
+        postsWithTags.forEach((post: any) => {
+            if (post.tags && Array.isArray(post.tags)) {
+                post.tags.forEach((tag: string) => {
+                    const normalizedTag = tag.toLowerCase();
+                    if (normalizedTag.includes(query)) {
+                        tagCountMap.set(normalizedTag, (tagCountMap.get(normalizedTag) || 0) + 1);
+                    }
+                });
+            }
+        });
+
+        const tags = Array.from(tagCountMap.entries()).map(([normalized, postsCount]) => ({
+            name: normalized,
+            normalized,
+            postsCount,
+            _relevanceScore: this.calculateTagRelevanceFromSearch(normalized, query, postsCount),
+        }));
+
+        const limit = options.pagination?.limit || 10;
+        const offset = options.pagination?.offset || 0;
+
+        return tags.slice(offset, offset + limit);
     }
 
-    private async rankProfiles(users: any[], searcherId?: string) {
+    private calculateTagRelevanceFromSearch(tag: string, query: string, postsCount: number): number {
+        let score = 0;
+
+        if (tag === query) {
+            score += 1000;
+        }
+
+        if (tag.startsWith(query)) {
+            score += 500;
+        }
+
+        if (tag.includes(query)) {
+            score += 200;
+        }
+
+        score += postsCount * 10;
+
+        return score;
+    }
+
+    private async rankProfiles(users: any[], searcherId?: string, query?: string): Promise<any[]> {
         if (!users.length) return [];
 
-        if (searcherId) {
-            const followRepo = this.getFollowRepo();
-            const followedUsers = await followRepo.getAllActive(
-                {},
-                {
-                    follower: searcherId,
-                    targetModel: 'User',
-                    status: 1,
-                },
-            );
+        users.sort((a, b) => {
+            if (!query) return 0;
 
-            const followedIds = followedUsers.map((f) => f.target?.toString()).filter(Boolean);
+            const aUsername = (a.username || '').toLowerCase();
+            const bUsername = (b.username || '').toLowerCase();
+            const aName = (a.name || '').toLowerCase();
+            const bName = (b.name || '').toLowerCase();
 
-            return users.sort((a, b) => {
-                const aIsFollowed = followedIds.includes(a._id.toString());
-                const bIsFollowed = followedIds.includes(b._id.toString());
+            if (aUsername === query && bUsername !== query) return -1;
+            if (aUsername !== query && bUsername === query) return 1;
 
-                if (aIsFollowed && !bIsFollowed) return -1;
-                if (!aIsFollowed && bIsFollowed) return 1;
+            if (aName === query && bName !== query) return -1;
+            if (aName !== query && bName === query) return 1;
 
-                const aFollowers = a.followersCount || 0;
-                const bFollowers = b.followersCount || 0;
-
+            const aFollowers = a.followersCount || 0;
+            const bFollowers = b.followersCount || 0;
+            if (bFollowers !== aFollowers) {
                 return bFollowers - aFollowers;
-            });
-        }
+            }
+
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
 
         return users;
     }
 
-    private async rankPosts(posts: any[], userId?: string) {
+    private async rankPosts(posts: any[], userId?: string, query?: string): Promise<any[]> {
         if (!posts.length) return [];
 
         return posts.sort((a, b) => {
-            const aScore = (a.likesCount || 0) + (a.commentsCount || 0) * 2 + (a.repostsCount || 0) * 1.5;
-            const bScore = (b.likesCount || 0) + (b.commentsCount || 0) * 2 + (b.repostsCount || 0) * 1.5;
+            if (b._relevanceScore !== a._relevanceScore) {
+                return b._relevanceScore - a._relevanceScore;
+            }
 
-            if (bScore !== aScore) return bScore - aScore;
+            const aEngagement = (a.likesCount || 0) + (a.commentsCount || 0) * 2 + (a.repostsCount || 0) * 1.5;
+            const bEngagement = (b.likesCount || 0) + (b.commentsCount || 0) * 2 + (b.repostsCount || 0) * 1.5;
+
+            if (bEngagement !== aEngagement) {
+                return bEngagement - aEngagement;
+            }
 
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
     }
 
-    private async rankTags(tags: any[]) {
+    private async rankTags(tags: any[], query?: string): Promise<any[]> {
         if (!tags.length) return [];
 
-        const uniqueTags = Array.from(new Map(tags.map((tag) => [tag.normalized, tag])).values());
+        return tags.sort((a, b) => {
+            if (b._relevanceScore !== a._relevanceScore) {
+                return b._relevanceScore - a._relevanceScore;
+            }
 
-        return uniqueTags.sort((a, b) => {
             return (b.postsCount || 0) - (a.postsCount || 0);
         });
     }
 
-    private async getSearchSuggestions(query: string) {
+    private async getSearchSuggestions(query: string): Promise<SuggestionItem[]> {
         if (query.length < 2) return [];
 
-        const tagRepo = this.getTagRepo();
+        const postRepo = this.getPostRepo();
+        const userRepo = this.getUserRepo();
 
-        const relatedTags = await tagRepo.getAllActive(
+        const postsWithTags = await postRepo.getAllActive(
             {
-                pagination: { limit: 5 },
+                pagination: { limit: 20 },
             },
             {
-                $or: [{ name: { $regex: query, $options: 'i' } }, { normalized: { $regex: query, $options: 'i' } }],
+                tags: { $regex: `^${query}`, $options: 'i' },
+                publishStatus: 'published',
                 status: 1,
-                postsCount: { $gt: 5 },
             },
         );
 
-        return relatedTags.map((tag) => ({
-            type: 'tag',
-            name: tag.name,
-            normalized: tag.normalized,
-            postsCount: tag.postsCount,
-        }));
+        const tagCountMap = new Map<string, number>();
+        postsWithTags.forEach((post: any) => {
+            if (post.tags) {
+                post.tags.forEach((tag: string) => {
+                    const normalizedTag = tag.toLowerCase();
+                    if (normalizedTag.startsWith(query)) {
+                        tagCountMap.set(normalizedTag, (tagCountMap.get(normalizedTag) || 0) + 1);
+                    }
+                });
+            }
+        });
+
+        const relatedTags = Array.from(tagCountMap.entries())
+            .map(([name, postsCount]) => ({ name, normalized: name, postsCount }))
+            .sort((a, b) => b.postsCount - a.postsCount)
+            .slice(0, 5);
+
+        const relatedUsers = await userRepo.getAllActive(
+            {
+                pagination: { limit: 3 },
+            },
+            {
+                $or: [
+                    { username: { $regex: `^${query}`, $options: 'i' } },
+                    { name: { $regex: `^${query}`, $options: 'i' } },
+                ],
+                status: 1,
+            },
+        );
+
+        const suggestions: SuggestionItem[] = [];
+
+        relatedTags.forEach((tag) => {
+            suggestions.push({
+                type: 'tag',
+                name: tag.name,
+                normalized: tag.normalized,
+                postsCount: tag.postsCount,
+                matchType: tag.normalized === query ? 'exact' : 'partial',
+            });
+        });
+
+        relatedUsers.forEach((user: any) => {
+            suggestions.push({
+                type: 'user',
+                username: user.username,
+                name: user.name,
+                avatarUrl: user.avatarUrl,
+                matchType: user.username?.toLowerCase() === query ? 'exact' : 'partial',
+            });
+        });
+
+        return suggestions;
     }
 
-    private async saveSearchHistory(userId: string, query: string, type: string) {
+    private async saveHistory(userId: string, query: string, type: string): Promise<void> {
         try {
-            const historyRepo = this.getSearchHistoryRepo();
+            const historyRepo = this.getHistoryRepo();
 
             const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
@@ -240,10 +432,10 @@ class SearchService extends BaseService {
         }
     }
 
-    async getSearchHistory(userId: string) {
+    async getHistory(userId: string): Promise<any[]> {
         this.validateRequired({ userId }, ['userId']);
 
-        const historyRepo = this.getSearchHistoryRepo();
+        const historyRepo = this.getHistoryRepo();
         return historyRepo.getAllActive(
             {
                 order: [['createdAt', 'desc']],
@@ -256,10 +448,10 @@ class SearchService extends BaseService {
         );
     }
 
-    async clearSearchHistory(userId: string) {
+    async clearHistory(userId: string): Promise<boolean> {
         this.validateRequired({ userId }, ['userId']);
 
-        const historyRepo = this.getSearchHistoryRepo();
+        const historyRepo = this.getHistoryRepo();
 
         const historyItems = await historyRepo.getAllActive(
             {},

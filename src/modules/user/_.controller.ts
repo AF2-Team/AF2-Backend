@@ -41,17 +41,17 @@ class UserController extends ControllerBase {
     }
 
     async following() {
-        const { userId } = this.getParams();
+        const user = this.getUser<{ _id: string }>();
         const options = this.getQueryFilters();
-        const result = await UserService.getFollowing(userId, options);
+        const result = await UserService.getFollowing(user!._id, options);
 
         this.success(result);
     }
 
     async followers() {
-        const { userId } = this.getParams();
+        const user = this.getUser<{ _id: string }>();
         const options = this.getQueryFilters();
-        const result = await UserService.getFollowers(userId, options);
+        const result = await UserService.getFollowers(user!._id, options);
 
         this.success(result);
     }

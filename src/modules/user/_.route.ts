@@ -9,7 +9,7 @@ router.get('/me', AuthMiddleware.authenticate, UserController.getMe);
 router.get('/username/:username', AuthMiddleware.authenticate, UserController.getByUsername);
 
 // Perfil propio
-router.put('/me', AuthMiddleware.authenticate, UserController.updateMe);
+router.patch('/me', AuthMiddleware.authenticate, UserController.updateMe);
 router.delete('/me', AuthMiddleware.authenticate, UserController.deleteMe);
 
 router.patch(

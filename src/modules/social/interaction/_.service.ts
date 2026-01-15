@@ -18,27 +18,29 @@ class InteractionService extends BaseService {
    async toggleLike(userId: string, postId: string) {
         const interactionRepo = this.getInteractionRepo();
         
-        // 1. Verificamos si ya existe el like
+        // 1. Buscamos si existe la interacción (SIN FILTRAR POR STATUS)
+        // Para saber si existe el registro "físico" en base de datos
         const existing = await interactionRepo.getOne({
             user: userId,
             post: postId,
-            type: 'like',
-            status: 1,
+            type: 'like'
+            // [FIX] Quitamos 'status: 1' para encontrar también los unlikes previos
         });
 
         let isLiked = false;
 
-        if (existing) {
-            // 2. Si existe, llamamos a TU método unlikePost
+        // 2. Decidimos qué hacer basándonos en el status actual
+        if (existing && existing.status === 1) {
+            // Si existe y está activo -> Quitamos el like
             await this.unlikePost(userId, postId);
             isLiked = false;
         } else {
-            // 3. Si no existe, llamamos a TU método likePost
+            // Si no existe O existe pero está inactivo (status 0) -> Ponemos el like
             await this.likePost(userId, postId);
             isLiked = true;
         }
 
-        // 4. Devolvemos el estado actual y el contador actualizado para el Frontend
+        // 4. Devolvemos el estado actual
         const post = await this.getPostRepo().getById(postId);
         return {
             liked: isLiked,
@@ -46,6 +48,7 @@ class InteractionService extends BaseService {
         };
     }
 
+    // --- CORRECCIÓN EN LIKE POST (Evitar Duplicados) ---
     async likePost(userId: string, postId: string) {
         this.validateRequired({ userId, postId }, ['userId', 'postId']);
 
@@ -57,17 +60,37 @@ class InteractionService extends BaseService {
             throw new NotFoundError('Post', postId);
         }
 
+        // [FIX] Buscamos interacción existente SIN importar status
         const existing = await interactionRepo.getOne({
             user: userId,
             post: postId,
-            type: 'like',
-            status: 1,
+            type: 'like' 
+            // status: 1  <-- ELIMINADO para detectar reactivaciones
         });
 
         if (existing) {
-            return { liked: true, alreadyLiked: true };
+            if (existing.status === 1) {
+                // Ya estaba activo, no hacemos nada
+                return { liked: true, alreadyLiked: true };
+            } else {
+                // [FIX] REACTIVACIÓN: Existía en status 0, lo pasamos a 1
+                await interactionRepo.update(existing._id.toString(), { status: 1 });
+                
+                // Sumamos el like
+                await postRepo.update(postId, {
+                    likesCount: (post.likesCount || 0) + 1,
+                });
+                
+                // Notificamos de nuevo (opcional, generalmente se notifica)
+                if (post.user.toString() !== userId) {
+                    this.sendLikeNotification(post, userId, postId);
+                }
+                
+                return { liked: true };
+            }
         }
 
+        // SI NO EXISTE: CREAMOS (Solo llegamos aquí si de verdad es nuevo)
         await interactionRepo.create({
             user: userId,
             post: postId,
@@ -80,20 +103,25 @@ class InteractionService extends BaseService {
         });
 
         if (post.user.toString() !== userId) {
-            try {
-                await NotificationService.notify({
-                    user: post.user.toString(),
-                    actor: userId,
-                    type: 'like',
-                    entityId: postId,
-                    entityModel: 'Post',
-                });
-            } catch (error) {
-                console.error('Failed to send like notification:', error);
-            }
+            this.sendLikeNotification(post, userId, postId);
         }
 
         return { liked: true };
+    }
+
+    // Método auxiliar para notificar (para no repetir código)
+    private async sendLikeNotification(post: any, userId: string, postId: string) {
+        try {
+            await NotificationService.notify({
+                user: post.user.toString(),
+                actor: userId,
+                type: 'like',
+                entityId: postId,
+                entityModel: 'Post',
+            });
+        } catch (error) {
+            console.error('Failed to send like notification:', error);
+        }
     }
 
     async unlikePost(userId: string, postId: string) {
@@ -106,13 +134,14 @@ class InteractionService extends BaseService {
             user: userId,
             post: postId,
             type: 'like',
-            status: 1,
+            status: 1, // Aquí sí requerimos status 1 para poder quitarlo
         });
 
         if (!like) {
             return { unliked: false, notLiked: true };
         }
 
+        // "Borrado lógico": Ponemos status 0
         await interactionRepo.update(like._id.toString(), { status: 0 });
 
         const post = await postRepo.getById(postId);
@@ -124,7 +153,6 @@ class InteractionService extends BaseService {
 
         return { unliked: true };
     }
-
     async createComment(userId: string, postId: string, text: string) {
         this.validateRequired({ userId, postId, text }, ['userId', 'postId', 'text']);
 

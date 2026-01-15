@@ -34,11 +34,7 @@ class PostController extends ControllerBase {
         // Llamamos al servicio de Feed existente
         const result = await FeedService.getFeed(user?._id, options as any);
         
-        // [TRUCO] Extraemos solo los posts limpios para que Android no se rompa
-        // Android espera List<Post>, Feed devuelve { items: [{post: ...}], ... }
-        const simpleList = result.items.map((item: any) => item.post);
-        
-        this.success(simpleList);
+        this.success(result);
     };
     async updatePost() {
         const user = this.getUser<{ _id: string }>();

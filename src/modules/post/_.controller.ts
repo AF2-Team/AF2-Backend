@@ -37,24 +37,28 @@ class PostController extends ControllerBase {
         
         this.success(result);
     };
-    async updatePost() {
+    updatePost = async () => {
         const user = this.getUser<{ _id: string }>();
-
         const postId = this.requireParam('id');
         const body = this.getBody();
 
-        const result = await PostService.updatePost(postId, user!._id, body);
+        // Llamamos a tu servicio
+        const result = await PostService.updatePost(postId, user._id, body);
         this.success(result, 'Post updated');
-    }
+    };
 
-    async deletePost() {
+    /**
+     * DELETE /api/v1/post/:id
+     */
+    deletePost = async () => {
         const user = this.getUser<{ _id: string }>();
-
         const postId = this.requireParam('id');
-        await PostService.deletePost(postId, user!._id);
-
+        
+        // Llamamos a tu servicio
+        await PostService.deletePost(postId, user._id);
+        
         this.success({ id: postId }, 'Post deleted');
-    }
+    };
 
     async uploadPostMedia() {
         const user = this.getUser<{ _id: string }>();

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import PostController from './_.controller.js';
 import { AuthMiddleware } from '@middlewares/auth.middleware.js';
 import { UploadMiddleware } from '@middlewares/upload.middleware.js';
-
+import InteractionController from '@modules/social/interaction/_.controller.js';
 const router = Router();
 
 // CRUD de Posts
@@ -25,7 +25,7 @@ router.get('/:id/reposts', PostController.getPostReposts);
 
 // Interacciones (solo contadores)
 router.get('/:id/interactions', PostController.getPostInteractions);
-
+router.post('/:id/like', AuthMiddleware.authenticate, InteractionController.toggleLike);
 // Filtros
 router.get('/user/:userId', PostController.getPostsByUser);
 router.get('/tag/:tag', PostController.getPostsByTag);

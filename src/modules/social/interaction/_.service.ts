@@ -15,6 +15,36 @@ class InteractionService extends BaseService {
     private getUserRepo() {
         return Database.repository('main', 'user');
     }
+   async toggleLike(userId: string, postId: string) {
+        const interactionRepo = this.getInteractionRepo();
+        
+        // 1. Verificamos si ya existe el like
+        const existing = await interactionRepo.getOne({
+            user: userId,
+            post: postId,
+            type: 'like',
+            status: 1,
+        });
+
+        let isLiked = false;
+
+        if (existing) {
+            // 2. Si existe, llamamos a TU método unlikePost
+            await this.unlikePost(userId, postId);
+            isLiked = false;
+        } else {
+            // 3. Si no existe, llamamos a TU método likePost
+            await this.likePost(userId, postId);
+            isLiked = true;
+        }
+
+        // 4. Devolvemos el estado actual y el contador actualizado para el Frontend
+        const post = await this.getPostRepo().getById(postId);
+        return {
+            liked: isLiked,
+            likesCount: post?.likesCount || 0
+        };
+    }
 
     async likePost(userId: string, postId: string) {
         this.validateRequired({ userId, postId }, ['userId', 'postId']);

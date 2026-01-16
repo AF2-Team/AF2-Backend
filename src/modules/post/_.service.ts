@@ -323,9 +323,9 @@ class PostService extends BaseService {
         });
     }
 
-    async getTrendingTags() {
+    async getTrendingTags(options?: any) {
         const tagRepo = this.getTagRepo();
-        return tagRepo.getTrending(10);
+        return (tagRepo as any).getTrending(10);
     }
 }
 

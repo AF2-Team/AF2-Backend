@@ -11,6 +11,7 @@ router.get('/username/:username', AuthMiddleware.authenticate, UserController.ge
 // Perfil propio
 router.patch('/me', AuthMiddleware.authenticate, UserController.updateMe);
 router.delete('/me', AuthMiddleware.authenticate, UserController.deleteMe);
+router.patch('/me/username', AuthMiddleware.authenticate, UserController.updateUsername);
 
 router.patch(
     '/me/avatar',

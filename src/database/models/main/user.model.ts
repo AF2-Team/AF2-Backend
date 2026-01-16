@@ -47,6 +47,11 @@ export default class UserModel extends MongooseModelBase {
                 maxlength: 30,
             },
 
+            lastUsernameChange: {
+                type: Date,
+                default: null,
+            },
+
             email: {
                 type: String,
                 required: true,

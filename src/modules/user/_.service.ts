@@ -132,6 +132,7 @@ class UserService extends BaseService {
 
         return {
             id: updatedUser._id || updatedUser.id,
+            name: updatedUser.name,
             username: updatedUser.username,
             avatarUrl: updatedUser.avatarUrl,
             updatedAt: updatedUser.updatedAt,

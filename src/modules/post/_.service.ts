@@ -294,12 +294,25 @@ class PostService extends BaseService {
     async getPostsByUser(userId: string, options: any) {
         this.validateRequired({ userId }, ['userId']);
         const postRepo = this.getPostRepo();
-        return postRepo.getAllActive(options, {
+        
+        // 1. Obtenemos los posts crudos
+        const posts = await postRepo.getAllActive(options, {
             user: userId,
             type: 'post',
             publishStatus: 'published',
             status: 1,
         });
+
+        // [FIX] 2. Rellenamos los datos del usuario explícitamente
+        // Esto agrega 'name', 'username' y 'avatarUrl' al objeto 'user' dentro de cada post
+        if (posts.length > 0 && (postRepo as any).model) {
+            await (postRepo as any).model.populate(posts, {
+                path: 'user',
+                select: 'name username avatarUrl'
+            });
+        }
+
+        return posts;
     }
 
     async getPostsByTag(tagName: string, options: any) {

@@ -181,7 +181,47 @@ export abstract class ControllerBase {
     private handleError(error: any): void {
         const normalized = this.normalizeError(error);
 
-        throw normalized;
+        if (!this.currentResponse || this.currentResponse.headersSent) {
+            throw normalized;
+        }
+
+        if (normalized instanceof ValidationError) {
+            this.currentResponse.status(400).json({
+                success: false,
+                message: normalized.message,
+                details: normalized.data?.validationErrors,
+            });
+            return;
+        }
+
+        if (normalized instanceof NotFoundError) {
+            this.currentResponse.status(404).json({
+                success: false,
+                message: normalized.message,
+            });
+            return;
+        }
+
+        if (normalized instanceof AuthError) {
+            this.currentResponse.status(401).json({
+                success: false,
+                message: normalized.message,
+            });
+            return;
+        }
+
+        if (normalized instanceof ProblematicResponseError) {
+            this.currentResponse.status(500).json({
+                success: false,
+                message: normalized.message,
+            });
+            return;
+        }
+
+        this.currentResponse.status(500).json({
+            success: false,
+            message: 'Internal server error',
+        });
     }
 
     private cleanupExecutionContext(): void {
@@ -294,7 +334,7 @@ export abstract class ControllerBase {
         throw new ValidationError(message, details);
     }
 
-     protected throwNotFoundError(message: string, details?: any): never {
+    protected throwNotFoundError(message: string, details?: any): never {
         throw new NotFoundError(message, details);
     }
 }

@@ -100,16 +100,22 @@ class PostService extends BaseService {
 
         const newPost = await postRepo.create(postData);
 
-        try {
-            const repo = postRepo as any;
-            if (repo.getByIdPopulated) {
-                return (await repo.getByIdPopulated(newPost._id.toString())) || newPost;
-            }
-        } catch {
-            // Continuar sin población
+        // [FIX] 1. OBLIGAR A POBLAR EL USUARIO
+        // Esto busca el nombre y foto en la colección de usuarios
+        if (newPost.populate) {
+            await newPost.populate('user', 'name username avatarUrl');
         }
 
-        return newPost;
+        // [FIX] 2. RETORNO SEGURO
+        // Convertimos a objeto JS simple para poder modificarlo si hace falta
+        const responseObj = newPost.toObject ? newPost.toObject() : newPost;
+        
+        // Parche de seguridad: Si no tiene name, usamos el username
+        if (responseObj.user && !responseObj.user.name) {
+            responseObj.user.name = responseObj.user.username || 'Usuario';
+        }
+
+        return responseObj;
     }
 
     async getPostById(postId: string) {
@@ -353,24 +359,9 @@ class PostService extends BaseService {
         });
     }
 
-    async getTrendingTags(options: any) {
+    async getTrendingTags(options?: any) {
         const tagRepo = this.getTagRepo();
-        const repo = tagRepo as any;
-
-        if (repo.getTrending) {
-            return repo.getTrending(options);
-        }
-
-        return tagRepo.getAllActive(
-            {
-                ...options,
-                order: [['postsCount', 'desc']],
-            },
-            {
-                status: 1,
-                postsCount: { $gt: 0 },
-            },
-        );
+        return (tagRepo as any).getTrending(10);
     }
 }
 

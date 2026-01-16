@@ -1,6 +1,7 @@
 import { ControllerBase } from '@bases/controller.base.js';
 import PostService from './_.service.js';
-
+import FeedService from '@modules/feed/_.service.js';
+import InteractionService from '@modules/social/interaction/_.service.js';
 class PostController extends ControllerBase {
     async createPost() {
         const user = this.getUser<{ _id: string }>();
@@ -26,25 +27,38 @@ class PostController extends ControllerBase {
 
         this.success(result);
     }
-
-    async updatePost() {
+    getFeed = async () => {
+        const user = this.getUser<{ _id: string } | null>();
+        // Simulamos las opciones para reutilizar el servicio existente
+        const options = { pagination: { limit: 20 }, raw: this.getQuery() };
+        
+        // Llamamos al servicio de Feed existente
+        const result = await FeedService.getFeed(user?._id, options as any);
+        
+        this.success(result);
+    };
+    updatePost = async () => {
         const user = this.getUser<{ _id: string }>();
-
         const postId = this.requireParam('id');
         const body = this.getBody();
 
-        const result = await PostService.updatePost(postId, user!._id, body);
+        // Llamamos a tu servicio
+        const result = await PostService.updatePost(postId, user._id, body);
         this.success(result, 'Post updated');
-    }
+    };
 
-    async deletePost() {
+    /**
+     * DELETE /api/v1/post/:id
+     */
+    deletePost = async () => {
         const user = this.getUser<{ _id: string }>();
-
         const postId = this.requireParam('id');
-        await PostService.deletePost(postId, user!._id);
-
+        
+        // Llamamos a tu servicio
+        await PostService.deletePost(postId, user._id);
+        
         this.success({ id: postId }, 'Post deleted');
-    }
+    };
 
     async uploadPostMedia() {
         const user = this.getUser<{ _id: string }>();
@@ -111,6 +125,28 @@ class PostController extends ControllerBase {
         const result = await PostService.getTrendingTags(options);
         this.success(result);
     }
+    addComment = async () => {
+        const user = this.getUser<{ _id: string }>();
+        const postId = this.requireParam('id'); // Usamos 'id' de la URL /post/:id/comment
+        const { text } = this.getBody(); 
+
+        const result = await InteractionService.createComment(user._id, postId, text);
+        this.success(result);
+    };
+
+    // Leer Comentarios
+    getComments = async () => {
+        const postId = this.requireParam('id'); // Usamos 'id' de la URL /post/:id/comments
+        const { page, limit } = this.getQuery();
+
+        const result = await InteractionService.getComments(postId, { 
+            pagination: { page: Number(page) || 1, limit: Number(limit) || 20 },
+            sort: { createdAt: -1 } // Más recientes primero
+        });
+        
+        this.success(result);
+    };
 }
+
 
 export default new PostController();

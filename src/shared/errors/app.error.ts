@@ -40,12 +40,10 @@ export class AppError extends Error {
         // Si hay error original, combinar stacks
         if (options.cause) this.stack = `${this.stack}\nCaused by: ${options.cause.stack}`;
 
-        this.logError();
+        Logger.error(null, this);
     }
 
     private logError(): void {
-        Logger.error(null, this);
-        /*
         const colors = {
             red: '\x1b[31m',
             yellow: '\x1b[33m',
@@ -73,7 +71,7 @@ export class AppError extends Error {
         if (this.originalError)
             console.log(`${colors.yellow}Original Error:${colors.reset} ${this.originalError.message}`);
 
-        console.log(`${colors.red}══════════════════════════════════════${colors.reset}\n`);*/
+        console.log(`${colors.red}══════════════════════════════════════${colors.reset}\n`);
     }
 
     public toJSON() {

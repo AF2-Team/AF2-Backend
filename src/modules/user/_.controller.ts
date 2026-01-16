@@ -18,6 +18,15 @@ class UserController extends ControllerBase {
         this.success(result);
     }
 
+    async updateUsername() {
+        const user = this.getUser<{ _id: string }>();
+        const { username } = this.getBody<{ username: string }>();
+
+        const result = await UserService.updateUsername(user!._id, username);
+
+        this.success(result, 'Username updated');
+    }
+
     async getMe() {
         const user = this.getUser<{ _id: string }>();
         const result = await UserService.getProfileById(user!._id, user!._id);

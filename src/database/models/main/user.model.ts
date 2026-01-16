@@ -10,6 +10,8 @@ export type User = {
     email: string;
     password: string;
 
+    lastusername: Date | null;
+
     avatarUrl?: string | null;
     avatarFileId?: string | null;
     bio?: string | null;

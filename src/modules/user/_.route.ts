@@ -14,14 +14,14 @@ router.delete('/me', AuthMiddleware.authenticate, UserController.deleteMe);
 
 router.patch(
     '/me/avatar',
-    UploadMiddleware.memory.single('media'),
     AuthMiddleware.authenticate,
+    UploadMiddleware.memory.single('media'),
     UserController.uploadAvatar,
 );
 router.patch(
     '/me/cover',
-    UploadMiddleware.memory.single('media'),
     AuthMiddleware.authenticate,
+    UploadMiddleware.memory.single('media'),
     UserController.uploadCover,
 );
 

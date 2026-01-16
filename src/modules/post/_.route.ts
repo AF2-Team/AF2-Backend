@@ -8,7 +8,7 @@ const router = Router();
 // CRUD de Posts
 router.post('/', AuthMiddleware.authenticate, UploadMiddleware.memory.array('media', 3), PostController.createPost);
 router.get('/:id', PostController.getPost);
-router.put('/:id', AuthMiddleware.authenticate, PostController.updatePost);
+router.patch('/:id', AuthMiddleware.authenticate, PostController.updatePost);
 router.delete('/:id', AuthMiddleware.authenticate, PostController.deletePost);
 router.get('/', AuthMiddleware.authenticate, PostController.getFeed);
 // Media adicional

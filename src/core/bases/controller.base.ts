@@ -189,7 +189,7 @@ export abstract class ControllerBase {
             this.currentResponse.status(400).json({
                 success: false,
                 message: normalized.message,
-                details: normalized.details,
+                details: normalized.data?.validationErrors,
             });
             return;
         }
